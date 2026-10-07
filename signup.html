@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Create account — my IT Hero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header id="app-header"></header>
+<main id="main">
+<div class="auth-wrap">
+  <div class="panel" id="step-details">
+    <h1>Create your account</h1>
+    <p class="muted">Your account is created in this browser only. Use the same browser and device to come back to your return.</p>
+    <div id="msg"></div>
+    <form id="signup-form" novalidate>
+      <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required></div>
+      <div class="field"><label for="mobile">Mobile number<span class="hint">10-digit Indian mobile number. You can verify it later from Account.</span></label>
+        <input id="mobile" name="mobile" type="tel" inputmode="numeric" autocomplete="tel-national" required></div>
+      <div class="field"><label for="password">Password<span class="hint">At least 10 characters with a letter and a number.</span></label>
+        <input id="password" name="password" type="password" autocomplete="new-password" required></div>
+      <div class="field"><label class="check"><input type="checkbox" name="accept_terms" id="accept_terms">
+        <span>I accept the <a href="terms.html" target="_blank">Terms of Use</a> and <a href="privacy.html" target="_blank">Privacy Policy</a>, and understand this is a preparation aid, not tax advice.</span></label></div>
+      <button class="btn" type="submit">Create account</button>
+    </form>
+    <p class="muted">Already registered? <a href="signin.html">Sign in</a></p>
+  </div>
+  <div class="panel hidden" id="step-otp">
+    <h1>Check your email</h1>
+    <p class="muted" id="otp-intro"></p>
+    <div id="otp-msg"></div>
+    <form id="otp-form" novalidate>
+      <div class="field"><label for="code">6-digit code</label><input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required></div>
+      <div class="btn-row"><button class="btn" type="submit">Verify and continue</button><button class="btn secondary" type="button" id="resend">Send a new code</button></div>
+    </form>
+  </div>
+</div>
+</main>
+<footer class="site" id="app-footer"></footer>
+<script src="rules-data.js"></script>
+<script src="engine.js"></script>
+<script src="validators.js"></script>
+<script src="ocr.js"></script>
+<script src="worksheet.js"></script>
+<script src="local-api.js"></script>
+<script src="app.js"></script>
+<script src="page-signup.js"></script>
+</body>
+</html>

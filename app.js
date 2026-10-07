@@ -1,48 +1,44 @@
-/* My IT Hero — shared frontend helpers. No tax is calculated in the browser:
-   every figure shown comes from the server API. All DOM text is set with
+/* My IT Hero — shared frontend helpers (GitHub Pages edition). Every figure comes from
+   assets/local-api.js, which runs the tax engine inside this browser; nothing is sent to a server. All DOM text is set with
    textContent (never innerHTML with data) to prevent XSS. */
 (function () {
   "use strict";
 
   const NAV_IN = [
-    ["/dashboard", "Home"], ["/new-regime", "New Regime"], ["/old-regime", "Old Regime"], ["/upload", "Upload Documents"],
-    ["/my-return", "My Return"], ["/tax-calculation", "Tax Calculation"], ["/itr-mapping", "ITR Mapping"],
-    ["/downloads", "Downloads"], ["/account", "Account"],
+    ["dashboard.html", "Home"], ["new-regime.html", "New Regime"], ["old-regime.html", "Old Regime"], ["upload.html", "Upload Documents"],
+    ["my-return.html", "My Return"], ["tax-calculation.html", "Tax Calculation"], ["itr-mapping.html", "ITR Mapping"],
+    ["downloads.html", "Downloads"], ["account.html", "Account"],
   ];
-  const NAV_OUT = [["/", "Home"], ["/new-regime", "New Regime"], ["/old-regime", "Old Regime"], ["/where-do-i-enter-this", "Where do I enter this?"],
-    ["/signin", "Sign in"], ["/signup", "Create account"]];
-
-  function getCookie(name) {
-    const m = document.cookie.match(new RegExp("(?:^|; )" + name + "=([^;]*)"));
-    return m ? decodeURIComponent(m[1]) : "";
-  }
+  const NAV_OUT = [["index.html", "Home"], ["new-regime.html", "New Regime"], ["old-regime.html", "Old Regime"], ["where-do-i-enter-this.html", "Where do I enter this?"],
+    ["signin.html", "Sign in"], ["signup.html", "Create account"]];
 
   class ApiError extends Error {
     constructor(body, status) { super(body.message || "Request failed"); this.body = body; this.status = status; }
   }
 
-  let csrfReady = null;
-  function ensureCsrf() {
-    if (getCookie("ith_csrf")) return Promise.resolve();
-    if (!csrfReady) csrfReady = fetch("/api/auth/csrf", { credentials: "same-origin" });
-    return csrfReady;
-  }
+  function currentPage() { const f = location.pathname.split("/").pop(); return f || "index.html"; }
 
   async function api(method, path, body, opts = {}) {
-    await ensureCsrf();
-    const init = { method, credentials: "same-origin", headers: { "X-CSRF-Token": getCookie("ith_csrf") } };
-    if (body instanceof FormData) init.body = body;
-    else if (body !== undefined) { init.body = JSON.stringify(body); init.headers["Content-Type"] = "application/json"; }
-    const res = await fetch(path, init);
-    let data;
-    try { data = await res.json(); } catch (e) { data = { success: false, message: "Unexpected response from the server.", error_code: "BAD_RESPONSE" }; }
-    if (!res.ok || data.success === false) {
+    try {
+      return await window.ITHLocal.handle(method, path, body, opts);
+    } catch (e) {
+      const data = e.body || { success: false, error_code: "INTERNAL_ERROR", message: String(e.message || e) };
       if ((data.error_code === "AUTH_REQUIRED" || data.error_code === "SESSION_EXPIRED") && !opts.noRedirect) {
-        location.href = "/signin?next=" + encodeURIComponent(location.pathname) + (data.error_code === "SESSION_EXPIRED" ? "&expired=1" : "");
+        location.href = "signin.html?next=" + encodeURIComponent(currentPage()) + (data.error_code === "SESSION_EXPIRED" ? "&expired=1" : "");
       }
-      throw new ApiError(data, res.status);
+      throw new ApiError(data, e.status || 500);
     }
-    return data;
+  }
+
+  function saveBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = filename; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  }
+  function downloadOutput(id, inline) {
+    const o = window.ITHLocal.getOutputBlob(id);
+    if (inline) { const url = URL.createObjectURL(o.blob); window.open(url, "_blank", "noopener"); setTimeout(() => URL.revokeObjectURL(url), 60000); }
+    else saveBlob(o.blob, o.filename);
   }
 
   function el(tag, attrs, ...kids) {
@@ -150,17 +146,17 @@
 
   async function shell(opts = {}) {
     const user = await me();
-    if (opts.auth && !user) { location.href = "/signin?next=" + encodeURIComponent(location.pathname) + (ITH.sessionExpired ? "&expired=1" : ""); return null; }
+    if (opts.auth && !user) { location.href = "signin.html?next=" + encodeURIComponent(currentPage()) + (ITH.sessionExpired ? "&expired=1" : ""); return null; }
     const header = document.getElementById("app-header");
     let meta = { active_ay: "2026-27", financial_year: "2025-26" };
     try { meta = await api("GET", "/api/meta"); } catch (e) { /* offline */ }
     if (header) {
-      const items = user ? NAV_IN.concat(user.is_admin ? [["/admin", "Admin"]] : []) : NAV_OUT;
-      const here = location.pathname.replace(/\/$/, "") || "/";
+      const items = user ? NAV_IN.concat(user.is_admin ? [["admin.html", "Rules status"]] : []) : NAV_OUT;
+      const here = currentPage();
       const nav = el("nav", { class: "nav", "aria-label": "Main" },
-        items.map(([href, label]) => el("a", { href, text: label, "aria-current": (href === here || (href === "/itr-mapping" && here === "/where-do-i-enter-this")) ? "page" : null })));
+        items.map(([href, label]) => el("a", { href, text: label, "aria-current": (href === here || (href === "itr-mapping.html" && here === "where-do-i-enter-this.html")) ? "page" : null })));
       header.replaceChildren(el("div", { class: "topbar" + (user ? " long" : "") }, el("div", { class: "topbar-inner" },
-        el("a", { class: "wordmark", href: user ? "/dashboard" : "/" }, el("span", { class: "mark", "aria-hidden": "true", text: "IT" }), "my IT Hero"),
+        el("a", { class: "wordmark", href: user ? "dashboard.html" : "index.html" }, el("span", { class: "mark", "aria-hidden": "true", text: "IT" }), "my IT Hero"),
         el("span", { class: "ay-pill", title: "Assessment Year being prepared", text: `AY ${meta.active_ay} (FY ${meta.financial_year})` }),
         nav)));
       const cur = nav.querySelector('[aria-current="page"]');
@@ -169,8 +165,9 @@
     const footer = document.getElementById("app-footer");
     if (footer) {
       footer.replaceChildren(el("div", { class: "inner" },
+        el("p", { class: "edition", text: "Browser-only edition: your account, documents and figures stay in this browser on this device. Nothing is uploaded to a server." }),
         el("p", { text: "This application prepares and estimates information for tax filing. It does not constitute professional tax advice. My IT Hero is not affiliated with the Income Tax Department and cannot file your return." }),
-        el("nav", { "aria-label": "Legal" }, [["/privacy", "Privacy Policy"], ["/terms", "Terms of Use"], ["/disclaimer", "Tax Disclaimer"], ["/data-retention", "Data Retention"],
+        el("nav", { "aria-label": "Legal" }, [["privacy.html", "Privacy Policy"], ["terms.html", "Terms of Use"], ["disclaimer.html", "Tax Disclaimer"], ["data-retention.html", "Data Retention"],
           ["https://www.incometax.gov.in/iec/foportal/", "Open Income Tax e-Filing Portal"]].map(([h, t]) =>
           el("a", h.startsWith("http") ? { href: h, text: t, target: "_blank", rel: "noopener noreferrer" } : { href: h, text: t })))));
     }
@@ -185,7 +182,7 @@
     else { btn.disabled = false; if (btn.dataset.label) btn.textContent = btn.dataset.label; }
   }
 
-  function safeNext(n) { return n && /^\/[a-z0-9\-]*$/i.test(n) ? n : "/dashboard"; }
+  function safeNext(n) { return n && /^[a-z0-9\-]+\.html$/i.test(n) ? n : "dashboard.html"; }
 
-  window.ITH = { api, el, inr, copyBox, chip, toast, showError, fieldErrors, shell, me, qs, busy, displayValue, safeNext, ApiError };
+  window.ITH = { api, saveBlob, downloadOutput, currentPage, el, inr, copyBox, chip, toast, showError, fieldErrors, shell, me, qs, busy, displayValue, safeNext, ApiError };
 })();

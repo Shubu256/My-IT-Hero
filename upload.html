@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Upload documents — my IT Hero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header id="app-header"></header>
+<main id="main">
+<div class="page-head"><div><h1>Upload documents</h1><p>PDF, JPG, JPEG, PNG, HEIC or HEIF — up to 10 MB and 20 pages each.</p></div></div>
+<label class="drop" id="drop" for="file">
+  <input type="file" id="file" name="file" accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,application/pdf,image/jpeg,image/png,image/heic,image/heif" multiple>
+  <strong>Choose files or drop them here</strong><br><span class="muted">Form 16, 16A, AIS, TIS, 26AS, salary slips, bank interest and home-loan certificates, rent receipts, investment and insurance proofs, capital-gains statements, donation receipts</span>
+</label>
+<div id="upload-status" class="stack"></div>
+<div class="notice info"><p>We never trust what we read automatically. Accept, correct or reject each value below. Values marked <strong>Please verify this value</strong> had low reading confidence. Files are read inside your browser and never uploaded anywhere. The first document loads the free OCR engine, which takes a few seconds. Document records are removed after <span id="ret-days">30</span> days unless you choose to keep them in Account.</p></div>
+<h2 class="section-title">Your documents</h2>
+<div id="docs"></div>
+<dialog id="conflict-dlg"><h2>Values don't match</h2><p id="conflict-text"></p>
+  <div class="btn-row"><button class="btn" id="use-doc" type="button">Use the document value</button><button class="btn secondary" id="keep-mine" type="button">Keep my current value</button></div></dialog>
+</main>
+<footer class="site" id="app-footer"></footer>
+<script src="rules-data.js"></script>
+<script src="engine.js"></script>
+<script src="validators.js"></script>
+<script src="ocr.js"></script>
+<script src="worksheet.js"></script>
+<script src="local-api.js"></script>
+<script src="app.js"></script>
+<script src="page-upload.js"></script>
+</body>
+</html>

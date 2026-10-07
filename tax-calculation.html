@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tax calculation — my IT Hero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header id="app-header"></header>
+<main id="main">
+<div class="page-head"><div><h1>Tax calculation</h1><p>Calculated on our server from the values in My Return. The e-Filing portal's own computation is authoritative.</p></div></div>
+<div id="calc-err"></div>
+<section class="panel"><h2>New vs Old regime</h2><div class="table-wrap"><table id="compare"><thead><tr><th>Item</th><th class="num">New regime</th><th class="num">Old regime</th></tr></thead><tbody></tbody></table></div>
+  <p id="compare-note"></p></section>
+<section class="panel"><h2>Recommended ITR form</h2><div id="itr"></div></section>
+<section class="panel"><div class="section-title"><h2 id="breakdown-title">Full breakdown</h2>
+  <label class="sr-only" for="bd-regime">Regime</label><select id="bd-regime"><option value="new">New regime</option><option value="old">Old regime</option></select></div>
+  <div id="warn-list"></div><div class="table-wrap"><table id="breakdown"><thead><tr><th>Step</th><th class="num">Amount</th><th>Rule status</th></tr></thead><tbody></tbody></table></div></section>
+</main>
+<footer class="site" id="app-footer"></footer>
+<script src="rules-data.js"></script>
+<script src="engine.js"></script>
+<script src="validators.js"></script>
+<script src="ocr.js"></script>
+<script src="worksheet.js"></script>
+<script src="local-api.js"></script>
+<script src="app.js"></script>
+<script src="page-calculation.js"></script>
+</body>
+</html>

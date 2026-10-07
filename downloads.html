@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Downloads — my IT Hero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header id="app-header"></header>
+<main id="main">
+<div class="page-head"><div><h1>Downloads</h1><p>Your preparation worksheets are kept here so you can download them again on any device.</p></div></div>
+<section class="panel"><h2>Generate a worksheet</h2>
+  <form id="gen-form" class="btn-row" novalidate>
+    <label class="sr-only" for="g-regime">Regime</label><select id="g-regime"><option value="new">New regime</option><option value="old">Old regime</option></select>
+    <label class="sr-only" for="g-format">Format</label><select id="g-format"><option value="pdf">PDF</option><option value="docx">Word (DOCX)</option></select>
+    <button class="btn" type="submit">Generate</button>
+  </form>
+  <p class="muted">The worksheet is labelled “NOT AN OFFICIAL INCOME TAX RETURN”. Text is selectable so you can copy values straight into the portal.</p>
+  <div id="email-note"></div>
+</section>
+<section class="panel"><h2>Your files</h2><div id="out-list"></div></section>
+</main>
+<footer class="site" id="app-footer"></footer>
+<script src="rules-data.js"></script>
+<script src="engine.js"></script>
+<script src="validators.js"></script>
+<script src="ocr.js"></script>
+<script src="worksheet.js"></script>
+<script src="local-api.js"></script>
+<script src="app.js"></script>
+<script src="page-downloads.js"></script>
+</body>
+</html>

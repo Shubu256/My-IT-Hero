@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Legal — my IT Hero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header id="app-header"></header>
+<main id="main">
+<div class="legal">
+<section id="privacy"><h1>Privacy Policy</h1>
+<p>My IT Hero handles highly sensitive financial and identity information. We follow privacy-by-design: we collect only what is needed to prepare your worksheet.</p>
+<h2>What we collect</h2><p>Your email, mobile number, a scrypt hash of your password (never the password itself), the tax documents you upload, the values you confirm, and worksheets you generate.</p>
+<h2>How we use it</h2><p>Only to prepare your preparation worksheet and show you where values go on the e-Filing portal. We do not sell or share your data, and we do not submit anything to the Income Tax Department.</p>
+<h2>Security</h2><p>Sessions use secure, HTTP-only cookies; requests are protected against cross-site request forgery; every record is tied to your account and checked on every request. Passwords, codes and tokens are never written to logs.</p>
+<h2>Your controls</h2><p>From Account you can export your data, delete a document, delete a return, or delete your account and everything linked to it.</p>
+<p class="muted">This policy has not been reviewed by a lawyer. We do not claim compliance with any specific law or regulation unless that review has been completed.</p></section>
+<section id="terms"><h1>Terms of Use</h1>
+<p>My IT Hero is a preparation aid. It estimates tax and shows where information is entered on the Government of India's e-Filing portal. It does not file returns and is not affiliated with the Income Tax Department.</p>
+<p>You are responsible for checking every value against your source documents and against the e-Filing portal before you submit your return. Do not upload documents that belong to someone else without their permission.</p>
+<p class="muted">Draft terms — require legal review before public launch.</p></section>
+<section id="disclaimer"><h1>Tax Disclaimer</h1>
+<p>This application prepares and estimates information for tax filing. It does not constitute professional tax advice.</p>
+<p>Calculations follow the rules stored for each Assessment Year. Rules marked “UNVERIFIED — REQUIRES REVIEW” have not yet been confirmed against official text. The e-Filing portal's computation is authoritative; if it differs from ours, rely on the portal and consult a qualified professional.</p>
+<p>Portal labels and navigation may change. Verify the field against the current Income Tax Department e-Filing portal before submission.</p></section>
+<section id="data-retention"><h1>Data Retention Policy</h1>
+<p>Uploaded documents are deleted automatically after the configured retention period (30 days by default) unless you choose to keep them in Account. Expired sign-in sessions and one-time codes are purged automatically.</p>
+<p>Confirmed values in your return and generated worksheets are kept until you delete them or your account. Deleting your account removes all of it immediately.</p></section>
+</div>
+</main>
+<footer class="site" id="app-footer"></footer>
+<script src="rules-data.js"></script>
+<script src="engine.js"></script>
+<script src="validators.js"></script>
+<script src="ocr.js"></script>
+<script src="worksheet.js"></script>
+<script src="local-api.js"></script>
+<script src="app.js"></script>
+<script src="page-legal.js"></script>
+</body>
+</html>

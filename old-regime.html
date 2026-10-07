@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tax regime — my IT Hero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header id="app-header"></header>
+<main id="main">
+<div class="page-head"><div><h1 id="regime-title">Tax regime</h1><p id="regime-sub"></p></div>
+  <div class="btn-row"><button class="btn" id="use-regime" type="button">Use this regime for my return</button><a class="btn secondary" id="other-regime" href="#">Compare with the other regime</a></div></div>
+<div id="regime-status"></div>
+<div class="grid-2">
+  <section class="panel"><h2>Slab rates</h2><div class="table-wrap"><table id="slabs"><thead><tr><th>Income range</th><th class="num">Rate</th></tr></thead><tbody></tbody></table></div>
+    <p class="muted" id="slab-note"></p></section>
+  <section class="panel"><h2>What this regime allows</h2><dl id="allows" class="stack"></dl></section>
+</div>
+<section class="panel" id="inputs-panel"><div class="section-title"><h2>Deductions and exemptions for this regime</h2><span class="muted" id="inputs-note"></span></div>
+  <p class="muted">Only items this regime allows are shown. Values are shared with My Return.</p>
+  <div id="signin-needed" class="notice hidden"><p>Sign in to enter your figures and see your own calculation. <a href="signin.html">Sign in</a></p></div>
+  <form id="regime-form" novalidate></form></section>
+<section class="panel" id="calc-panel"><h2>Your calculation under this regime</h2><div id="calc"></div></section>
+</main>
+<footer class="site" id="app-footer"></footer>
+<script src="rules-data.js"></script>
+<script src="engine.js"></script>
+<script src="validators.js"></script>
+<script src="ocr.js"></script>
+<script src="worksheet.js"></script>
+<script src="local-api.js"></script>
+<script src="app.js"></script>
+<script src="page-regime.js"></script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>my IT Hero — ITR preparation worksheet</title>
+<meta name="description" content="Upload Form 16, AIS and other tax documents, check every value, and get a worksheet that tells you exactly where to enter each figure on the Income Tax e-Filing portal.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header id="app-header"></header>
+<main id="main">
+  <section class="hero">
+    <div>
+      <h1>Know exactly what to type into the tax portal, and where.</h1>
+      <p class="lede">Upload your Form 16, AIS, bank and investment documents. Check every value we read. Get a preparation worksheet that maps each figure to its ITR form, schedule and portal field, ready to copy.</p>
+      <div class="btn-row">
+        <a class="btn" href="signup.html">Create free account</a>
+        <a class="btn secondary" href="where-do-i-enter-this.html">Search where a value goes</a>
+      </div>
+      <p class="muted" id="deadline-note"></p>
+    </div>
+    <div class="demo" aria-label="Example of a worksheet entry">
+      <p class="muted">Example worksheet entries — click Copy to try it</p>
+      <div class="demo-row">
+        <div class="demo-name">Salary as per section 17(1)</div>
+        <div class="crumbs"><span>ITR-1</span><span>Gross Total Income</span><span>Salary</span></div>
+        <div id="demo-1"></div>
+      </div>
+      <div class="demo-row">
+        <div class="demo-name">TDS on salary</div>
+        <div class="crumbs"><span>ITR-1</span><span>Tax Paid</span><span>TDS on Salary</span></div>
+        <div id="demo-2"></div>
+      </div>
+      <div class="demo-row">
+        <div class="demo-name">Interest from savings account</div>
+        <div class="crumbs"><span>ITR-1</span><span>Gross Total Income</span><span>Income from Other Sources</span></div>
+        <div id="demo-3"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>How it works</h2>
+    <ol class="steps">
+      <li><h3>Upload your documents</h3><p class="muted">PDF, JPG, PNG, HEIC or HEIF. We read Form 16, Form 16A, AIS, 26AS, interest and home-loan certificates, and more.</p></li>
+      <li><h3>Confirm every value</h3><p class="muted">Each figure shows the document and page it came from and how sure we are. Nothing reaches your return until you accept it.</p></li>
+      <li><h3>Copy into the portal</h3><p class="muted">Download a PDF or Word worksheet that lists the ITR form, schedule and field for every value.</p></li>
+    </ol>
+  </section>
+
+  <section class="panel">
+    <h2>Pick a tax regime to explore</h2>
+    <p class="muted">Both use the same data you enter once. Compare them side by side before you choose.</p>
+    <div class="regime-links">
+      <a class="regime-link" href="new-regime.html"><strong>New Tax Regime</strong>Default regime. Lower slab rates, ₹75,000 standard deduction, rebate up to ₹60,000 for income up to ₹12 lakh, very few deductions.</a>
+      <a class="regime-link" href="old-regime.html"><strong>Old Tax Regime</strong>Higher slab rates but allows 80C, 80D, HRA, home-loan interest on a self-occupied house and other deductions.</a>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Where does this go?</h2>
+    <p class="muted">Type what you have — salary, TDS, 80C, home loan, dividend — to see which ITR schedule it belongs to.</p>
+    <form class="searchbar" id="pub-search" role="search">
+      <label class="sr-only" for="pq">Search a value</label>
+      <input type="search" id="pq" name="q" placeholder="e.g. home loan interest" autocomplete="off">
+      <button class="btn" type="submit">Search</button>
+    </form>
+    <div class="tagline" id="pub-tags"></div>
+    <div id="pub-results" class="stack"></div>
+  </section>
+</main>
+<footer class="site" id="app-footer"></footer>
+<script src="rules-data.js"></script>
+<script src="engine.js"></script>
+<script src="validators.js"></script>
+<script src="ocr.js"></script>
+<script src="worksheet.js"></script>
+<script src="local-api.js"></script>
+<script src="app.js"></script>
+<script src="page-index.js"></script>
+</body>
+</html>

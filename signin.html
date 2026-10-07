@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in — my IT Hero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header id="app-header"></header>
+<main id="main">
+<div class="auth-wrap">
+  <div class="panel" id="step-login">
+    <h1>Sign in</h1>
+    <div id="msg"></div>
+    <form id="signin-form" novalidate>
+      <div class="field"><label for="identifier">Email or mobile number</label><input id="identifier" name="identifier" type="text" autocomplete="username" required></div>
+      <div class="field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required></div>
+      <button class="btn" type="submit">Sign in</button>
+    </form>
+    <p class="muted">Accounts live in the browser where they were created. <a href="reset-password.html">Forgot password?</a> · New here? <a href="signup.html">Create an account</a></p>
+  </div>
+  <div class="panel hidden" id="step-otp">
+    <h1>Verify your email</h1>
+    <p class="muted">Enter the code we sent to your email to finish signing in.</p>
+    <div id="otp-msg"></div>
+    <form id="otp-form" novalidate>
+      <div class="field"><label for="code">6-digit code</label><input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6"></div>
+      <button class="btn" type="submit">Verify and sign in</button>
+    </form>
+  </div>
+</div>
+</main>
+<footer class="site" id="app-footer"></footer>
+<script src="rules-data.js"></script>
+<script src="engine.js"></script>
+<script src="validators.js"></script>
+<script src="ocr.js"></script>
+<script src="worksheet.js"></script>
+<script src="local-api.js"></script>
+<script src="app.js"></script>
+<script src="page-signin.js"></script>
+</body>
+</html>

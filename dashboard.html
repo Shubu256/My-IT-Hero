@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home — my IT Hero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header id="app-header"></header>
+<main id="main">
+<div class="page-head"><div><h1 id="greet">Your return</h1><p id="ay-line"></p></div>
+  <div class="btn-row"><a class="btn" href="upload.html">Upload documents</a><a class="btn secondary" href="downloads.html">Download worksheet</a></div></div>
+<div id="dash-err"></div>
+<div class="stats" id="stats"></div>
+<div class="grid-2" id="dash-grid">
+  <section class="panel"><h2>Return progress</h2><div class="bar" aria-hidden="true"><i id="bar"></i></div><ol class="progress" id="progress"></ol></section>
+  <section class="panel"><h2>Warnings</h2><div id="warnings"></div></section>
+</div>
+<section class="panel"><h2>Downloads</h2><p class="muted">Generate a preparation worksheet for the regime you've selected.</p>
+  <div class="btn-row"><button class="btn" id="gen-pdf" type="button">Download PDF</button><button class="btn secondary" id="gen-docx" type="button">Download Word (DOCX)</button></div></section>
+</main>
+<footer class="site" id="app-footer"></footer>
+<script src="rules-data.js"></script>
+<script src="engine.js"></script>
+<script src="validators.js"></script>
+<script src="ocr.js"></script>
+<script src="worksheet.js"></script>
+<script src="local-api.js"></script>
+<script src="app.js"></script>
+<script src="page-dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Where do I enter this? — my IT Hero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header id="app-header"></header>
+<main id="main">
+<div class="page-head"><div><h1>Where do I enter this?</h1><p>Every value in your return, with the ITR form, schedule and portal field it belongs to.</p></div>
+  <a class="btn" href="https://www.incometax.gov.in/iec/foportal/" target="_blank" rel="noopener noreferrer">Open Income Tax e-Filing Portal</a></div>
+<div class="notice warning" id="map-disclaimer"><p>Portal labels and navigation may change. Verify the field against the current Income Tax Department e-Filing portal before submission.</p></div>
+<section class="panel">
+  <form class="searchbar" id="map-search" role="search">
+    <label class="sr-only" for="q">Search</label><input type="search" id="q" placeholder="Search: salary, TDS, 80C, home loan, dividend…" autocomplete="off">
+    <label class="sr-only" for="itr-sel">ITR form</label><select id="itr-sel"><option value="">Recommended ITR</option><option>ITR-1</option><option>ITR-2</option><option>ITR-3</option><option>ITR-4</option></select>
+    <button class="btn" type="submit">Search</button>
+  </form>
+  <div class="tagline" id="tags"></div>
+</section>
+<p class="muted" id="map-meta"></p>
+<div id="map-list"></div>
+</main>
+<footer class="site" id="app-footer"></footer>
+<script src="rules-data.js"></script>
+<script src="engine.js"></script>
+<script src="validators.js"></script>
+<script src="ocr.js"></script>
+<script src="worksheet.js"></script>
+<script src="local-api.js"></script>
+<script src="app.js"></script>
+<script src="page-mapping.js"></script>
+</body>
+</html>

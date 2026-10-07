@@ -234,3 +234,5 @@ main > .page-head + * { margin-top: 0; }
 .topbar.long .topbar-inner { flex-wrap: wrap; gap: 8px 16px; padding-top: 8px; }
 .topbar.long .nav { order: 3; width: calc(100% + 32px); margin: 0 -16px; padding: 4px 12px 8px; border-top: 1px solid var(--line); }
 #allows dt { font-weight: 600; } #allows dd { margin: 2px 0 12px; }
+
+footer.site .edition { color: var(--ink); font-weight: 600; }

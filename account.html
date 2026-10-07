@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Account — my IT Hero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header id="app-header"></header>
+<main id="main">
+<div class="page-head"><div><h1>Account</h1><p id="acct-sub"></p></div><button class="btn secondary" id="logout" type="button">Sign out</button></div>
+<div class="grid-2">
+  <section class="panel"><h2>Contact details</h2><dl id="contact" class="stack"></dl>
+    <div id="mobile-verify" class="stack"></div></section>
+  <section class="panel"><h2>Document retention</h2>
+    <p class="muted">Uploaded files are never stored — only the values read from them. Document records are removed automatically after <span id="days">30</span> days. Your confirmed values stay in your return.</p>
+    <label class="check"><input type="checkbox" id="retain"> <span>Keep my uploaded documents until I delete them</span></label></section>
+</div>
+<section class="panel"><h2>Your data</h2>
+  <div class="btn-row"><button class="btn secondary" type="button" id="export-btn">Export my data (JSON)</button><button class="btn danger" id="del-return" type="button">Delete this year's return</button></div></section>
+<section class="panel"><h2>Delete my account</h2><p class="muted">Deletes your account, documents, returns and worksheets permanently.</p>
+  <form id="del-form" class="btn-row" novalidate><label class="sr-only" for="del-pw">Password</label><input type="password" id="del-pw" placeholder="Current password" autocomplete="current-password">
+  <button class="btn danger" type="submit">Delete my account and data</button></form><div id="del-msg"></div></section>
+</main>
+<footer class="site" id="app-footer"></footer>
+<script src="rules-data.js"></script>
+<script src="engine.js"></script>
+<script src="validators.js"></script>
+<script src="ocr.js"></script>
+<script src="worksheet.js"></script>
+<script src="local-api.js"></script>
+<script src="app.js"></script>
+<script src="page-account.js"></script>
+</body>
+</html>
