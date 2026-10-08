@@ -54,9 +54,18 @@
   const form = document.getElementById("regime-form");
   async function load() {
     const ret = await api("GET", "/api/return");
+    const regimeCats = ret.profile.options.some((o) => o.key === regime);
+    if (!regimeCats) {
+      document.getElementById("regime-status").replaceChildren(el("div", { class: "notice warning" }, el("p", null,
+        `Your open return is a ${ret.profile.category_short} return, which does not use the ${regime} regime. Its options are: ${ret.profile.options.map((o) => o.label).join("; ")}. `, el("a", { href: ret.profile.page, text: "Open its category page" }))));
+      useBtn.classList.add("hidden"); document.getElementById("inputs-panel").classList.add("hidden"); document.getElementById("calc-panel").classList.add("hidden");
+      return;
+    }
+    const present = new Set(ret.fields.map((f) => f.field_id));
+    R.inputs = R.inputs.filter((i) => present.has(i.field_id));
     const byId = Object.fromEntries(ret.fields.map((f) => [f.field_id, f]));
     document.getElementById("regime-status").replaceChildren(el("div", { class: "notice " + (ret.regime === regime ? "info" : "warning") },
-      el("p", { text: ret.regime === regime ? "Your return currently uses this regime." : `Your return currently uses the ${ret.regime} regime. The calculation below shows what you'd pay under the ${regime} regime.` })));
+      el("p", { text: (ret.regime === regime ? "Your return currently uses this regime." : `Your return currently uses the ${ret.regime} regime. The calculation below shows what you'd pay under the ${regime} regime.`) + ` (Open return: ${ret.profile.label}, ${ret.profile.category_short}.)` })));
     useBtn.disabled = ret.regime === regime;
     form.replaceChildren(...R.inputs.map((inp) => {
       const f = byId[inp.field_id] || {};

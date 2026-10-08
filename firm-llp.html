@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Partnership Firm / LLP — my IT Hero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header id="app-header"></header>
+<main id="main">
+<div class="page-head"><div><p class="crumbs"><span><a href="taxpayer-categories.html">Taxpayer categories</a></span><span id="cat-crumb"></span></p>
+  <h1 id="cat-title" data-category="FIRM">Partnership Firm / LLP</h1><p id="cat-sub"></p></div>
+  <div class="btn-row" id="cat-actions"></div></div>
+<div id="cat-status"></div>
+<div class="grid-2">
+  <section class="panel"><h2>Who files in this category</h2><dl id="cat-who" class="kv"></dl></section>
+  <section class="panel"><h2>Due dates — AY 2026-27</h2><div id="cat-dates"></div></section>
+</div>
+<section class="panel"><h2>Tax rates and options</h2><div id="cat-rates"></div></section>
+<section class="panel"><h2>Every combination at a glance</h2><p class="muted">Each row is one combination of sub-type and tax option, with the rate, ITR form and due date that apply.</p>
+  <div class="table-wrap"><table id="cat-matrix"></table></div></section>
+<section class="panel" id="cat-helper-panel"><h2 id="cat-helper-title">Check</h2><div id="cat-helper"></div></section>
+<section class="panel" id="cat-form-panel"><div class="section-title"><h2>Your figures for this category</h2><a class="btn small secondary" href="my-return.html">Open the full return</a></div>
+  <div id="cat-form-note"></div><form id="cat-form" novalidate></form></section>
+<section class="panel" id="cat-calc-panel"><h2>Your calculation</h2><div id="cat-calc"></div></section>
+<section class="panel"><h2>On the e-Filing portal</h2><ol id="cat-portal" class="plain-steps"></ol>
+  <p class="muted" id="cat-source"></p></section>
+</main>
+<footer class="site" id="app-footer"></footer>
+<script src="rules-data.js"></script>
+<script src="engine.js"></script>
+<script src="entities.js"></script>
+<script src="validators.js"></script>
+<script src="ocr.js"></script>
+<script src="worksheet.js"></script>
+<script src="local-api.js"></script>
+<script src="app.js"></script>
+<script src="page-category.js"></script>
+</body>
+</html>

@@ -33,7 +33,10 @@
   function worksheetData(ay, regime, calc, mapping, docs, user, conflicts) {
     const s = calc.summary;
     return {
-      ay, fy: calc.financial_year, regime: regime === "new" ? "New Tax Regime (s.115BAC)" : "Old Tax Regime", regime_key: regime,
+      ay, fy: calc.financial_year, regime: regime === "new" ? "New Tax Regime (s.115BAC)" : regime === "old" ? "Old Tax Regime" : (calc.option_label || regime), regime_key: regime,
+      category: calc.profile ? `${calc.profile.category} — ${calc.profile.subtype_label}` : "Individual — Resident", return_label: calc.profile ? calc.profile.label : "",
+      portal_status: (calc.itr && calc.itr.portal_status) || (calc.profile && calc.profile.portal_status) || "Individual", due_date: s.due_date,
+      filing_requirement: calc.filing_requirement || null,
       itr: calc.itr, summary: s, lines: calc.lines, warnings: calc.warnings, mapping: mapping.fields, mapping_disclaimer: mapping.disclaimer,
       mapping_version: mapping.mapping_version, portal_url: mapping.portal_url, docs,
       pending: mapping.fields.filter((f) => ["Needs Review", "Warning", "Error", "Missing"].includes(f.status)), conflicts,
@@ -47,11 +50,11 @@
       ],
       steps: [
         "Sign in at incometax.gov.in and open e-File > Income Tax Returns > File Income Tax Return.",
-        `Select Assessment Year ${ay}, mode Online, status Individual, and the form ${calc.itr.recommended}.`,
+        `Select Assessment Year ${ay}, mode Online, status '${(calc.itr && calc.itr.portal_status) || (calc.profile && calc.profile.portal_status) || "Individual"}', and the form ${calc.itr.recommended}. Then tick the reason for filing${calc.filing_requirement && calc.filing_requirement.required ? "" : " (e.g. to claim a refund)"}.`,
         "Check the pre-filled values against this worksheet; edit only where your documents support a different value.",
-        "Choose the tax regime you used here when the portal asks (new regime is the default).",
+        ["new", "old"].includes(regime) ? "Choose the tax regime you used here when the portal asks (new regime is the default; business cases opting out need Form 10-IEA by the due date)." : `Confirm the tax option '${calc.option_label || regime}' in Part A-GEN (and that its form — 10-IB / 10-IC / 10-ID / 10-IF / 10-IFA — was filed by the due date, where applicable).`,
         "Compare the portal's computed tax with this worksheet. Investigate any difference before paying or submitting.",
-        "Pay any balance via e-Pay Tax (Challan 280, self-assessment tax), add the challan details, then submit and e-verify within the allowed time.",
+        `Pay any balance via e-Pay Tax (self-assessment tax), add the challan details, then submit and e-verify within ${(root.ITH_DATA && root.ITH_DATA.rules[ay].deadlines.everify_days) || 30} days — an unverified return is treated as invalid.`,
       ],
     };
   }
@@ -148,8 +151,10 @@
     para(SUBTITLE, { size: 13, bold: true, color: INK });
     para(NOT_OFFICIAL, { size: 11, bold: true, color: RED, after: 6 });
     const B = (t) => ({ t, b: true });
-    table([[B("Assessment Year"), B(d.ay), B("Financial Year"), d.fy], [B("Tax regime"), d.regime, B("Recommended ITR"), B(d.itr.recommended)],
+    table([[B("Assessment Year"), B(d.ay), B("Financial Year"), d.fy], [B("Taxpayer category"), d.category, B("Portal status"), d.portal_status],
+      [B("Regime / option"), d.regime, B("Recommended ITR"), B(d.itr.recommended)], [B("Due date"), d.due_date ? d.due_date.split("-").reverse().join("/") : "—", B("Return"), d.return_label || "—"],
       [B("Prepared"), d.prepared_at, B("Account"), d.email]], [0.18, 0.32, 0.18, 0.32], { header: false, size: 8.5 });
+    if (d.filing_requirement) para((d.filing_requirement.required ? "Filing is compulsory: " : "Filing is optional: ") + d.filing_requirement.reasons.join("; "), { size: 8, color: MUTED, after: 4 });
     table([[B("Result"), { t: `${statusText(s)}: ${inr(s.refund_or_payable)}`, b: true }]], [0.18, 0.82], { header: false, size: 11 });
 
     heading("Why this ITR form");
@@ -233,7 +238,9 @@
   function buildDocxXml(d) {
     const s = d.summary; const b = [];
     b.push(H(TITLE, 22), H(SUBTITLE, 14), P(NOT_OFFICIAL, { bold: true, size: 12, color: "B42318" }));
-    b.push(tbl([["Assessment Year", d.ay, "Financial Year", d.fy], ["Tax regime", d.regime, "Recommended ITR", d.itr.recommended], ["Prepared", d.prepared_at, "Account", d.email]], [3.2, 5.6, 3.2, 5.6], false));
+    b.push(tbl([["Assessment Year", d.ay, "Financial Year", d.fy], ["Taxpayer category", d.category, "Portal status", d.portal_status], ["Regime / option", d.regime, "Recommended ITR", d.itr.recommended],
+      ["Due date", d.due_date ? d.due_date.split("-").reverse().join("/") : "—", "Return", d.return_label || "—"], ["Prepared", d.prepared_at, "Account", d.email]], [3.2, 5.6, 3.2, 5.6], false));
+    if (d.filing_requirement) b.push(P((d.filing_requirement.required ? "Filing is compulsory: " : "Filing is optional: ") + d.filing_requirement.reasons.join("; "), { size: 8.5, color: "5B6070" }));
     b.push(P(`${statusText(s)}: ${inr(s.refund_or_payable)}`, { bold: true, size: 13 }));
     b.push(H("Why this ITR form"));
     d.itr.why.forEach((w) => b.push(P("• " + w)));

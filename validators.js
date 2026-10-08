@@ -91,7 +91,7 @@
     else if ((m = s.match(/^(\d{1,2})[\s-]([A-Za-z]{3})[A-Za-z]*[\s-](\d{4})$/)) && MONTHS.includes(m[2].toLowerCase())) v = mkDate(+m[3], MONTHS.indexOf(m[2].toLowerCase()) + 1, +m[1]);
     return res(raw, v, !!v, v ? [] : ["invalid_date"]);
   }
-  function parseInt_(raw) { const s = String(raw).trim(); if (!/^\d+$/.test(s)) return res(raw, null, false, ["not_an_integer"]); const v = +s; return res(raw, v, v <= 1000, v <= 1000 ? [] : ["out_of_range"]); }
+  function parseInt_(raw) { const s = String(raw).trim(); if (!/^\d+$/.test(s)) return res(raw, null, false, ["not_an_integer"]); const v = +s; return res(raw, v, v <= 10000, v <= 10000 ? [] : ["out_of_range"]); }
   function parseBool(raw) {
     const s = String(raw).trim().toLowerCase();
     if (["1", "true", "yes", "y", "on"].includes(s)) return res(raw, true, true, []);

@@ -29,8 +29,13 @@
         return;
       }
       const r = await api("GET", `/api/mapping?q=${encodeURIComponent(q.value.trim())}&itr=${encodeURIComponent(itrSel.value)}`);
+      if (!itrSel.dataset.filled) {
+        const keep = itrSel.value;
+        itrSel.replaceChildren(el("option", { value: "", text: "Recommended ITR" }), ...r.itr_forms.map((x) => el("option", { value: x, text: x })));
+        itrSel.value = r.itr_forms.includes(keep) ? keep : ""; itrSel.dataset.filled = "1";
+      }
       document.getElementById("map-meta").textContent =
-        `Showing ${r.fields.length} field(s) for ${r.itr}${r.itr === r.recommended ? " (recommended for you)" : " — your recommended form is " + r.recommended}. Mapping version ${r.mapping_version}, last checked ${r.last_verified}.` + (r.stale ? " This mapping is marked stale for the current year." : "");
+        `${r.profile.label} (${r.profile.category_short}). Showing ${r.fields.length} field(s) for ${r.itr}${r.itr === r.recommended ? " (recommended for you)" : " — your recommended form is " + r.recommended}. Mapping version ${r.mapping_version}, last checked ${r.last_verified}.` + (r.stale ? " This mapping is marked stale for the current year." : "");
       if (!r.fields.length) { list.replaceChildren(el("p", { class: "muted", text: "Nothing matches. Try another word, or enter more values in My Return." })); return; }
       list.replaceChildren(...r.fields.map((f) => el("article", { class: "map-card" },
         el("div", null,

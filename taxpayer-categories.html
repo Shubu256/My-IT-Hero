@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Taxpayer categories — my IT Hero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header id="app-header"></header>
+<main id="main">
+<div class="page-head"><div><h1>Taxpayer categories</h1><p>Pick who the return is for. Each category has its own ITR forms, tax rates, options and due dates for AY 2026-27.</p></div></div>
+<div class="cat-grid" id="cat-grid"></div>
+<section class="panel" id="returns-panel"><h2>Your returns</h2><p class="muted">One account can prepare several returns — for example your own, your HUF's and your firm's. The highlighted one is open in My Return, Tax Calculation, ITR Mapping and Downloads.</p>
+  <div id="returns-list"></div></section>
+<section class="panel" id="new-return-panel"><h2>Start another return</h2>
+  <form id="new-return" class="grid-3" novalidate>
+    <div class="field"><label for="nr-entity">Category</label><select id="nr-entity" name="entity"></select></div>
+    <div class="field"><label for="nr-subtype">Type</label><select id="nr-subtype" name="subtype"></select></div>
+    <div class="field"><label for="nr-label">Name for this return<span class="hint">e.g. "Rao HUF" or "Asha Traders LLP"</span></label><input id="nr-label" name="label" type="text" maxlength="60"></div>
+    <div class="btn-row"><button class="btn" type="submit">Start return</button></div>
+  </form></section>
+<section class="panel"><h2>How the official portal asks for this</h2>
+  <p>On incometax.gov.in the filing flow is <strong>e-File › Income Tax Returns › File Income Tax Return</strong> › Assessment Year › Online › <strong>status</strong> (Individual, HUF or Others) › ITR form › reason for filing. The category you choose here sets that status and ITR form for you.</p></section>
+</main>
+<footer class="site" id="app-footer"></footer>
+<script src="rules-data.js"></script>
+<script src="engine.js"></script>
+<script src="entities.js"></script>
+<script src="validators.js"></script>
+<script src="ocr.js"></script>
+<script src="worksheet.js"></script>
+<script src="local-api.js"></script>
+<script src="app.js"></script>
+<script src="page-categories.js"></script>
+</body>
+</html>

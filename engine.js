@@ -67,7 +67,9 @@
   }
 
   // ---------------------------------------------------------------- calculator
-  function compute(values, regime, ay, today) {
+  function compute(values, regime, ay, today, profile) {
+    profile = profile || { entity: "IND_RES" };
+    const isHUF = profile.entity === "HUF";
     if (regime !== "new" && regime !== "old") throw new Error("regime must be 'new' or 'old'");
     const RU = root.ITH_DATA.rules[ay];
     const reg = RU.regimes[regime];
@@ -80,7 +82,8 @@
 
     // profile
     let band = "below_60", age = 0;
-    if (!v.dob) warn("DOB_MISSING", "Date of birth is missing — slabs for taxpayers below 60 were used.");
+    if (isHUF) { /* HUF: no age bands */ }
+    else if (!v.dob) warn("DOB_MISSING", "Date of birth is missing — slabs for taxpayers below 60 were used.");
     else {
       const ref = parseDate(addDays(RU.fy_end, 1)), d = parseDate(v.dob);
       age = ref.y - d.y - ((ref.m < d.m || (ref.m === d.m && ref.d < d.d)) ? 1 : 0);
@@ -88,6 +91,11 @@
     }
     const slabsFor = (b) => reg.slabs[b] || reg.slabs.all_ages;
     const resident = ["RES", "RNOR"].includes(v.residential_status || "RES");
+    if (!resident && band !== "below_60") {
+      // Senior / super-senior slabs are for resident individuals only (SRC-ITD-NRI-AY2627)
+      warn("NR_SENIOR_SLABS", "Senior-citizen slabs apply only to residents; general slabs were used.", "info");
+      band = "below_60";
+    }
     if (!v.residential_status) warn("RES_STATUS_MISSING", "Residential status not entered — treated as Resident.", "warning");
     line("regime", reg.name, Z, "Age band: " + band.replace(/_/g, " "), "info");
 
@@ -155,7 +163,7 @@
     const special = stcg + ltcg112a + ltcg112;
     const lim = RU.deduction_limits, allowed = new Set(reg.allowed_deductions), senior = band !== "below_60";
     const out = {}; const notAllowed = new Set();
-    for (const key of ["d_80c", "d_80ccd1b", "d_80ccd2", "d_80cch", "d_80d_self", "d_80d_parents", "d_80e", "d_80g"]) {
+    for (const key of ["d_80c", "d_80ccd1b", "d_80ccd2", "d_80cch", "d_80d_self", "d_80d_parents", "d_80e", "d_80g", "d_80jjaa", "d_80ia_group"]) {
       const amt = m(key);
       if (!amt) continue;
       if (!allowed.has(key)) { notAllowed.add(lim[key].section); continue; }
@@ -207,7 +215,7 @@
 
     const rb = reg.rebate_87a;
     let rebate = Z, relief87 = Z;
-    if (resident) {
+    if (resident && !isHUF) {
       const rebateBase = rb.excludes_special_rate_tax ? normalTax : normalTax + specialTax;
       if (ti <= R(rb.income_limit)) rebate = min(rebateBase, R(rb.max_rebate));
       else if (rb.marginal_relief) {
@@ -243,7 +251,20 @@
     sur -= mr;
     const cess = pct(taxAfter + sur, RU.cess_rate);
     line("cess", `Health & Education Cess @ ${RU.cess_rate}%`, cess);
-    const liability = roundTo(taxAfter + sur + cess, RU.rounding.tax_nearest);
+    let grossTax = taxAfter + sur + cess;
+    // Alternate Minimum Tax (s.115JC) — old regime, profit-linked deductions / 10AA / 35AD claimed
+    const amtBase = (out.d_80ia_group || Z) + m("amt_addbacks");
+    if (regime === "old" && amtBase > Z && RU.amt) {
+      const ati = ti + amtBase;
+      if (ati > R(RU.amt.threshold_ind_huf_aop)) {
+        const amtTax = pct(ati, RU.amt.rate);
+        const [amtSur] = surcharge(ati, amtTax, Z);
+        const amtTotal = amtTax + amtSur + pct(amtTax + amtSur, RU.cess_rate);
+        line("amt", `Alternate Minimum Tax @ ${RU.amt.rate}% of adjusted total income ₹${inrPlain(ati)}`, amtTotal, RU.amt.verification);
+        if (amtTotal > grossTax) { warn("AMT_APPLIES", "AMT u/s 115JC is higher than normal tax and becomes payable. The excess can be carried forward as AMT credit (Schedule AMTC).", "warning"); grossTax = amtTotal; }
+      }
+    }
+    const liability = roundTo(grossTax, RU.rounding.tax_nearest);
     line("total_tax_liability", "Total tax liability (rounded to nearest ₹10)", liability, null, "total");
 
     // taxes paid
@@ -254,8 +275,9 @@
 
     // interest & fee
     const filing = v.filing_date || todayStr;
-    const due = RU.deadlines.due_date_139_1_non_audit;
-    if (m("bp_regular")) warn("AUDIT_UNKNOWN", "If your accounts must be audited, a later due date applies. Interest and fee assume a non-audit case.", "warning");
+    const due = dueDateFor(RU, v, profile);
+    if ((m("bp_regular") || m("bp_presumptive")) && (v.audit_required === undefined || v.audit_required === null || v.audit_required === ""))
+      warn("AUDIT_UNKNOWN", "Answer whether your accounts are audited — audited cases have a later due date (21 Nov 2026).", "warning");
     const it = RU.interest;
     const assessed = max(Z, liability - tds - tcs);
     let i234a = Z, i234b = Z, i234c = Z;
@@ -308,6 +330,18 @@
       refund_or_payable: s(abs(netAmt)),
     };
     return { assessment_year: ay, regime, summary, lines, warnings, disclaimer: "Estimate only. The e-Filing portal's computation is authoritative." };
+  }
+
+  // ---------------------------------------------------------------- due dates
+  const truthy = (x) => [true, 1, "1", "true", "True", "yes"].includes(x);
+  function dueDateFor(RU, v, profile) {
+    const dl = RU.deadlines; const e = (profile && profile.entity) || "IND_RES";
+    if (truthy(v.tp_required)) return dl.due_date_139_1_transfer_pricing || dl.due_date_139_1_audit;
+    const auditedByNature = e === "COMPANY" || e === "TRUST" && profile.subtype !== "BUSINESS_TRUST" && profile.subtype !== "UNREGISTERED" && profile.subtype !== "PRIVATE_DISCRETIONARY" || e === "POLITICAL";
+    if (truthy(v.audit_required) || auditedByNature) return dl.due_date_139_1_audit;
+    const business = toPaise(v.bp_regular) > Z || toPaise(v.bp_presumptive) > Z || ["FIRM", "COOP_AOP"].includes(e) && toPaise(v.turnover) > Z;
+    if (business) return dl.due_date_139_1_non_audit_business || dl.due_date_139_1_non_audit;
+    return dl.due_date_139_1_non_audit;
   }
 
   // ---------------------------------------------------------------- ITR selector
@@ -365,6 +399,6 @@
       source: L.source, verification: L.verification };
   }
 
-  root.ITHEngine = { compute, selectItr, slabTax, toPaise, rupeesStr, pct, roundTo, monthsOrPart };
+  root.ITHEngine = { compute, selectItr, slabTax, toPaise, rupeesStr, pct, roundTo, monthsOrPart, dueDateFor, divHalfUp, floorTo, R, inrPlain, parseDate, addDays, fmtDate, max, min, abs, Z, P };
   if (typeof module !== "undefined") module.exports = root.ITHEngine;
 })(typeof window !== "undefined" ? window : globalThis);

@@ -25,6 +25,7 @@
         try { await api("POST", "/api/auth/mobile/verify", { code: code.value }); toast("Mobile verified."); location.reload(); } catch (e) { showError(msg, e); } } })));
   }
   document.getElementById("export-btn").addEventListener("click", () => ITH.saveBlob(window.ITHLocal.exportData(), "my-it-hero-data-export.json"));
+  document.getElementById("del-return").textContent = "Delete the open return";
   const ret = document.getElementById("retain");
   ret.checked = u.retain_documents;
   ret.addEventListener("change", async () => {
@@ -33,7 +34,7 @@
   });
   document.getElementById("logout").addEventListener("click", async () => { await api("POST", "/api/auth/logout", {}); location.href = "signin.html"; });
   document.getElementById("del-return").addEventListener("click", async () => {
-    if (!confirm("Delete this year's return, its documents and worksheets? This cannot be undone.")) return;
+    if (!confirm("Delete the return that is open now (its values and worksheets)? This cannot be undone.")) return;
     try { const r = await api("DELETE", "/api/return"); toast(r.message); } catch (e) { showError(null, e); }
   });
   document.getElementById("del-form").addEventListener("submit", async (e) => {

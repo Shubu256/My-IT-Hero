@@ -5,7 +5,7 @@
 (function (root) {
   "use strict";
   const KEY = "myithero:v1";
-  const E = root.ITHEngine, V = root.ITHValidators, O = root.ITHOcr, WS = root.ITHWorksheet, DATA = root.ITH_DATA;
+  const E = root.ITHEngine, X = root.ITHEntities, V = root.ITHValidators, O = root.ITHOcr, WS = root.ITHWorksheet, DATA = root.ITH_DATA;
   const AY = DATA.active;
   const CONFIG = { RETENTION_DAYS: 30, MAX_UPLOAD_BYTES: 10 * 1024 * 1024, MAX_PDF_PAGES: 20, MAX_DOCS: 30, SESSION_IDLE: 30 * 60, SESSION_ABS: 12 * 3600, MAX_OUTPUTS: 20 };
   const STATUS = { V: "Verified", R: "Needs Review", M: "Missing", W: "Warning", E: "Error" };
@@ -77,11 +77,29 @@
   // ------------------------------------------------------------ return model
   const catalog = () => DATA.mapping[AY].fields;
   const catById = () => Object.fromEntries(catalog().map((f) => [f.field_id, f]));
-  function getReturn(st, user) {
+  // One account can prepare several returns (profiles) — e.g. own return, HUF, firm — one per taxpayer category.
+  const CATS = () => DATA.rules[AY].entities;
+  function newProfile(id, entity, subtype, label) {
+    const opts = X.optionsFor({ entity, subtype }, AY);
+    return { id, entity, subtype, label: label || CATS()[entity].short, regime: opts[0].key, fields: {}, created_at: now(), updated_at: now() };
+  }
+  function bucket(st, user) {
     st.returns[user.id] = st.returns[user.id] || {};
-    let r = st.returns[user.id][AY];
-    if (!r) { r = st.returns[user.id][AY] = { regime: "new", fields: {}, created_at: now(), updated_at: now() }; save(st); }
-    return r;
+    let b = st.returns[user.id][AY];
+    if (b && b.fields && !b.profiles) { // migrate the single-return format used before categories existed
+      const p = newProfile("p1", "IND_RES", "RES", "My return"); p.regime = b.regime || "new"; p.fields = b.fields; p.created_at = b.created_at || now();
+      b = st.returns[user.id][AY] = { profiles: { p1: p }, active: "p1", seq: 2 }; save(st);
+    }
+    if (!b) { b = st.returns[user.id][AY] = { profiles: { p1: newProfile("p1", "IND_RES", "RES", "My return") }, active: "p1", seq: 2 }; save(st); }
+    if (!b.profiles[b.active]) { b.active = Object.keys(b.profiles)[0]; if (!b.active) { b.profiles.p1 = newProfile("p1", "IND_RES", "RES", "My return"); b.active = "p1"; } save(st); }
+    return b;
+  }
+  function getReturn(st, user) { const b = bucket(st, user); return b.profiles[b.active]; }
+  const applicable = (f, ret) => (!f.entities || f.entities.includes(ret.entity)) && (!f.subtypes || f.subtypes.includes(ret.subtype));
+  function profileInfo(ret) {
+    const c = CATS()[ret.entity];
+    return { id: ret.id, entity: ret.entity, subtype: ret.subtype, label: ret.label, category: c.label, category_short: c.short, subtype_label: c.subtypes[ret.subtype],
+      page: c.page, portal_status: c.portal_status, itr_forms: c.itr_forms, option: ret.regime, options: X.optionsFor(ret, AY) };
   }
   const docsOf = (st, user) => (st.documents[user.id] = st.documents[user.id] || []);
   const outsOf = (st, user) => (st.outputs[user.id] = st.outputs[user.id] || []);
@@ -113,25 +131,26 @@
     if (conflict) return STATUS.W;
     if (!row || row.value === null || row.value === "") return f.required ? STATUS.M : null;
     if (!V.parserFor(f.data_type)(row.value).ok) return STATUS.E;
-    if (!f.regimes.includes(regime) && f.group === "deductions" && !["0", "0.00"].includes(row.value)) return STATUS.W;
+    if (["new", "old"].includes(regime) && !f.regimes.includes(regime) && f.group === "deductions" && !["0", "0.00"].includes(row.value)) return STATUS.W;
     return row.user_verified ? STATUS.V : STATUS.R;
   }
   function docName(st, user, id) { const d = docsOf(st, user).find((x) => x.id === id); return d ? d.orig_name : null; }
 
   function calc(st, user, ret, regime) {
     const vals = typedValues(ret);
-    const res = E.compute(vals, regime, AY);
-    const sel = E.selectItr(vals, AY, res.summary.total_income);
+    const res = X.computeFor(ret, vals, regime, AY);
+    const sel = X.selectItrFor(ret, vals, AY, res.summary.total_income);
     const conf = conflicts(st, user, ret);
     const unverified = Object.values(ret.fields).filter((r) => !r.user_verified).length;
     if (Object.keys(conf).length) res.warnings.unshift({ code: "CONFLICTS", severity: "error", message: `${Object.keys(conf).length} value(s) differ between your documents and your return. Resolve them before filing.` });
     if (unverified) res.warnings.unshift({ code: "UNVERIFIED", severity: "warning", message: `${unverified} value(s) taken from documents are not yet confirmed by you.` });
-    res.itr = sel; res.financial_year = DATA.rules[AY].financial_year;
+    res.itr = sel; res.financial_year = DATA.rules[AY].financial_year; res.profile = profileInfo(ret);
     return res;
   }
   function buildMapping(st, user, ret, regime, itr, summary) {
     const mp = DATA.mapping[AY]; const conf = conflicts(st, user, ret); const out = [];
     for (const f of mp.fields) {
+      if (!applicable(f, ret)) continue;
       const m = f.mappings.find((x) => x.itr_form === itr) || null;
       if ((!m && ["flags", "filing"].includes(f.group)) || (!f.mappings.length && f.group !== "computed")) continue;
       let row = null, val, status;
@@ -140,7 +159,7 @@
         row = ret.fields[f.field_id] || null; val = row ? row.value : null;
         status = fieldStatus(f, row, conf[f.field_id], regime) || "Not applicable";
         if ((val === null || val === "") && !f.required) continue;
-        if (!f.regimes.includes(regime)) status = "Not used in this regime";
+        if (["new", "old"].includes(regime) && !f.regimes.includes(regime)) status = "Not used in this regime";
       }
       out.push({ field_id: f.field_id, display_name: f.display_name, value: val, help: f.help, keywords: f.keywords, group: f.group, data_type: f.data_type,
         assessment_year: AY, regime, itr_form: itr, schedule: m ? m.schedule : null, section: m ? m.section : null, portal_label: m ? m.portal_label : null,
@@ -230,14 +249,14 @@
   route("GET", "/api/return", ({ st }) => {
     const user = requireUser(st), ret = getReturn(st, user), conf = conflicts(st, user, ret);
     const counts = { [STATUS.V]: 0, [STATUS.R]: 0, [STATUS.M]: 0, [STATUS.W]: 0, [STATUS.E]: 0 };
-    const fields = catalog().filter((f) => f.group !== "computed").map((f) => {
+    const fields = catalog().filter((f) => f.group !== "computed" && applicable(f, ret)).map((f) => {
       const row = ret.fields[f.field_id]; const s = fieldStatus(f, row, conf[f.field_id], ret.regime); if (s) counts[s] += 1;
       return { field_id: f.field_id, display_name: f.display_name, group: f.group, data_type: f.data_type, help: f.help, regimes: f.regimes, required: f.required,
         value: row ? row.value : null, provenance: row ? { source_document: row.source_document_id ? docName(st, user, row.source_document_id) : null, source_page: row.source_page,
           extraction_method: row.extraction_method, confidence: row.confidence, user_verified: !!row.user_verified, last_modified: row.last_modified } : null,
         status: s, conflict: conf[f.field_id] || null };
     });
-    return { assessment_year: AY, financial_year: DATA.rules[AY].financial_year, regime: ret.regime, fields, counts, documents: docsOf(st, user).length,
+    return { assessment_year: AY, financial_year: DATA.rules[AY].financial_year, regime: ret.regime, profile: profileInfo(ret), fields, counts, documents: docsOf(st, user).length,
       filled: fields.filter((f) => f.value !== null && f.value !== "").length };
   });
   route("PUT", "/api/return/fields", ({ st, b }) => {
@@ -266,34 +285,89 @@
   });
   route("POST", "/api/return/regime", ({ st, b }) => {
     const user = requireUser(st), ret = getReturn(st, user); const regime = body(b).regime;
-    if (!["new", "old"].includes(regime)) throw new LocalError("INVALID_REGIME", "Regime must be 'new' or 'old'.", null, 400);
-    ret.regime = regime; ret.updated_at = now(); save(st); return { regime };
+    const opts = X.optionsFor(ret, AY).map((o) => o.key);
+    if (!opts.includes(regime)) throw new LocalError("INVALID_REGIME", `This category allows: ${opts.join(", ")}.`, null, 400);
+    ret.regime = regime;
+    if (ret.entity === "COMPANY" && regime !== "new" && regime !== "old") ret.fields.company_option = { value: regime, source_document_id: null, source_page: null, extraction_method: "manual", confidence: 1, user_verified: true, last_modified: now() };
+    if (ret.entity === "COOP_AOP" && ret.subtype === "COOP") ret.fields.coop_option = { value: regime, source_document_id: null, source_page: null, extraction_method: "manual", confidence: 1, user_verified: true, last_modified: now() };
+    ret.updated_at = now(); save(st); return { regime };
   });
   route("DELETE", "/api/return", ({ st }) => {
-    const user = requireUser(st);
-    if (st.returns[user.id]) delete st.returns[user.id][AY];
-    st.documents[user.id] = []; st.outputs[user.id] = []; save(st);
-    return { message: "Return and its documents were deleted." };
+    const user = requireUser(st); const b = bucket(st, user); const ret = b.profiles[b.active];
+    delete b.profiles[b.active];
+    if (!Object.keys(b.profiles).length) { st.documents[user.id] = []; st.outputs[user.id] = []; }
+    else st.outputs[user.id] = outsOf(st, user).filter((o) => o.profile_id !== ret.id);
+    b.active = Object.keys(b.profiles)[0]; save(st); bucket(st, user);
+    return { message: `The ${CATS()[ret.entity].short} return "${ret.label}" was deleted.` };
+  });
+  // ---- profiles (one per taxpayer category / person)
+  route("GET", "/api/profiles", ({ st }) => {
+    const user = requireUser(st); const b = bucket(st, user);
+    return { active: b.active, profiles: Object.values(b.profiles).map((p) => Object.assign(profileInfo(p), { filled: Object.keys(p.fields).length, updated_at: p.updated_at })) };
+  });
+  route("POST", "/api/profiles", ({ st, b: body_ }) => {
+    const user = requireUser(st); const b = bucket(st, user); const d = body(body_);
+    const c = CATS()[d.entity];
+    if (!c) throw new LocalError("INVALID_CATEGORY", "Choose a taxpayer category.", null, 400);
+    const subtype = d.subtype && c.subtypes[d.subtype] ? d.subtype : Object.keys(c.subtypes)[0];
+    if (Object.keys(b.profiles).length >= 20) throw new LocalError("TOO_MANY_RETURNS", "You can prepare up to 20 returns at a time.", "Delete a return you no longer need.", 400);
+    const id = "p" + (b.seq++);
+    const p = newProfile(id, d.entity, subtype, String(d.label || "").trim().slice(0, 60) || c.short);
+    if (d.entity === "IND_NR") p.fields.residential_status = { value: subtype, source_document_id: null, source_page: null, extraction_method: "manual", confidence: 1, user_verified: true, last_modified: now() };
+    if (d.entity === "HUF" || d.entity === "IND_RES") p.fields.residential_status = { value: d.entity === "IND_RES" ? "RES" : subtype, source_document_id: null, source_page: null, extraction_method: "manual", confidence: 1, user_verified: true, last_modified: now() };
+    if (d.entity === "COMPANY" && subtype === "FOREIGN") p.fields.residential_status = { value: "NR", source_document_id: null, source_page: null, extraction_method: "manual", confidence: 1, user_verified: true, last_modified: now() };
+    if (d.copy_contact) { const cur = b.profiles[b.active]; for (const k of ["mobile", "email"]) if (cur && cur.fields[k]) p.fields[k] = Object.assign({}, cur.fields[k]); }
+    b.profiles[id] = p; b.active = id; save(st);
+    return { profile: profileInfo(p), message: `Started a ${c.short} return.` };
+  });
+  route("POST", "/api/profiles/:id/activate", ({ st, p }) => {
+    const user = requireUser(st); const b = bucket(st, user);
+    if (!b.profiles[p.id]) throw new LocalError("NOT_FOUND", "Return not found.", null, 404);
+    b.active = p.id; save(st); return { profile: profileInfo(b.profiles[p.id]) };
+  });
+  route("PATCH", "/api/profiles/:id", ({ st, p, b: body_ }) => {
+    const user = requireUser(st); const b = bucket(st, user); const d = body(body_); const pr = b.profiles[p.id];
+    if (!pr) throw new LocalError("NOT_FOUND", "Return not found.", null, 404);
+    const c = CATS()[pr.entity];
+    if (d.subtype && c.subtypes[d.subtype]) { pr.subtype = d.subtype; const opts = X.optionsFor(pr, AY).map((o) => o.key); if (!opts.includes(pr.regime)) pr.regime = opts[0];
+      if (pr.entity === "IND_NR" || pr.entity === "HUF") pr.fields.residential_status = { value: d.subtype, source_document_id: null, source_page: null, extraction_method: "manual", confidence: 1, user_verified: true, last_modified: now() }; }
+    if (typeof d.label === "string" && d.label.trim()) pr.label = d.label.trim().slice(0, 60);
+    pr.updated_at = now(); save(st); return { profile: profileInfo(pr) };
+  });
+  route("GET", "/api/categories", () => ({ assessment_year: AY, financial_year: DATA.rules[AY].financial_year, categories: CATS(), deadlines: DATA.rules[AY].deadlines,
+    regimes: { new: DATA.rules[AY].regimes.new, old: DATA.rules[AY].regimes.old }, capital_gains: DATA.rules[AY].capital_gains, cess_rate: DATA.rules[AY].cess_rate,
+    amt: DATA.rules[AY].amt, special_surcharge_cap_rate: DATA.rules[AY].special_surcharge_cap_rate, filing_requirement: DATA.rules[AY].filing_requirement,
+    options: Object.fromEntries(Object.entries(CATS()).map(([k, c]) => [k, Object.fromEntries(Object.keys(c.subtypes).map((sub) => [sub, X.optionsFor({ entity: k, subtype: sub }, AY)]))])) }));
+  route("GET", "/api/residency", ({ st }) => {
+    const user = requireUser(st), ret = getReturn(st, user);
+    return X.residentialStatus(typedValues(ret));
   });
   route("GET", "/api/calc", ({ st, q }) => {
     const user = requireUser(st), ret = getReturn(st, user); const regime = q.get("regime") || ret.regime;
-    if (!["new", "old"].includes(regime)) throw new LocalError("INVALID_REGIME", "Regime must be 'new' or 'old'.", null, 400);
+    if (!X.optionsFor(ret, AY).some((o) => o.key === regime)) throw new LocalError("INVALID_REGIME", "This option is not available for this taxpayer category.", null, 400);
     return calc(st, user, ret, regime);
   });
   route("GET", "/api/calc/compare", ({ st }) => {
     const user = requireUser(st), ret = getReturn(st, user);
-    const n = calc(st, user, ret, "new"), o = calc(st, user, ret, "old");
-    const a = Number(n.summary.total_tax_liability), c = Number(o.summary.total_tax_liability);
-    return { new: n.summary, old: o.summary, itr: n.itr, lower: a < c ? "new" : c < a ? "old" : "equal", difference: String(Math.abs(a - c)), selected: ret.regime };
+    const opts = X.optionsFor(ret, AY);
+    const results = opts.map((o) => ({ key: o.key, label: o.label, calc: calc(st, user, ret, o.key) }));
+    const sorted = results.slice().sort((a, b) => Number(a.calc.summary.total_tax_liability) - Number(b.calc.summary.total_tax_liability));
+    const best = sorted[0], second = sorted[1];
+    const out = { options: results.map((r) => ({ key: r.key, label: r.label, summary: r.calc.summary })), itr: (results.find((r) => r.key === ret.regime) || results[0]).calc.itr,
+      lower: !second || Number(best.calc.summary.total_tax_liability) === Number(second.calc.summary.total_tax_liability) ? "equal" : best.key,
+      difference: second ? String(Number(second.calc.summary.total_tax_liability) - Number(best.calc.summary.total_tax_liability)) : "0", selected: ret.regime, profile: profileInfo(ret),
+      filing_requirement: (results.find((r) => r.key === ret.regime) || results[0]).calc.filing_requirement };
+    for (const r of results) out[r.key] = r.calc.summary;
+    return out;
   });
   route("GET", "/api/mapping", ({ st, q }) => {
     const user = requireUser(st), ret = getReturn(st, user); const regime = q.get("regime") || ret.regime;
     const res = calc(st, user, ret, regime); const itr = q.get("itr") || res.itr.recommended;
-    if (!["ITR-1", "ITR-2", "ITR-3", "ITR-4"].includes(itr)) throw new LocalError("INVALID_ITR", "Unknown ITR form.", null, 400);
+    if (!["ITR-1", "ITR-2", "ITR-3", "ITR-4", "ITR-5", "ITR-6", "ITR-7"].includes(itr)) throw new LocalError("INVALID_ITR", "Unknown ITR form.", null, 400);
     const mp = buildMapping(st, user, ret, regime, itr, res.summary);
     const term = (q.get("q") || "").trim().toLowerCase();
     if (term) mp.fields = mp.fields.filter((f) => f.display_name.toLowerCase().includes(term) || f.keywords.some((k) => k.includes(term)) || (f.schedule || "").toLowerCase().includes(term) || (f.portal_label || "").toLowerCase().includes(term));
-    return { itr, recommended: res.itr.recommended, ...mp };
+    return { itr, recommended: res.itr.recommended, profile: profileInfo(ret), itr_forms: CATS()[ret.entity].itr_forms, ...mp };
   });
 
   // documents
@@ -357,14 +431,16 @@
   route("POST", "/api/outputs", ({ st, b }) => {
     const user = requireUser(st), ret = getReturn(st, user); b = body(b);
     const fmt = b.format, regime = b.regime || ret.regime;
-    if (!["pdf", "docx"].includes(fmt) || !["new", "old"].includes(regime)) throw new LocalError("INVALID_REQUEST", "Choose PDF or DOCX and a regime.", null, 400);
+    if (!["pdf", "docx"].includes(fmt) || !X.optionsFor(ret, AY).some((o) => o.key === regime)) throw new LocalError("INVALID_REQUEST", "Choose PDF or DOCX and an option available for this category.", null, 400);
     const res = calc(st, user, ret, regime); const itr = res.itr.recommended;
     const mp = buildMapping(st, user, ret, regime, itr, res.summary);
     const docs = docsOf(st, user).map((d) => ({ orig_name: d.orig_name, doc_type: d.doc_type, pages: d.pages, created_at: d.created_at }));
     const data = WS.worksheetData(AY, regime, res, mp, docs, user, conflicts(st, user, ret));
     const bytes = fmt === "pdf" ? WS.buildPdf(data) : WS.buildDocx(data);
     let bin = ""; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-    const out = { id: nextId(st), kind: fmt, regime, itr, filename: `MyITHero_Worksheet_AY${AY}_${regime}-regime_${itr}.${fmt}`, created_at: now(), emailed_at: null, data: btoa(bin) };
+    const slug = (ret.entity + "_" + ret.subtype).toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const out = { id: nextId(st), kind: fmt, regime, itr, profile_id: ret.id, category: CATS()[ret.entity].short, label: ret.label,
+      filename: `MyITHero_Worksheet_AY${AY}_${slug}_${regime}_${itr}.${fmt}`, created_at: now(), emailed_at: null, data: btoa(bin) };
     const list = outsOf(st, user); list.push(out);
     while (list.length > CONFIG.MAX_OUTPUTS) list.shift();
     save(st);
@@ -393,20 +469,23 @@
   route("GET", "/api/dashboard", ({ st }) => {
     const user = requireUser(st), ret = getReturn(st, user); const res = calc(st, user, ret, ret.regime); const conf = conflicts(st, user, ret);
     const cat = catalog();
-    const review = cat.filter((f) => f.group !== "computed" && [STATUS.R, STATUS.W, STATUS.E].includes(fieldStatus(f, ret.fields[f.field_id], conf[f.field_id], ret.regime))).length;
-    const missing = cat.filter((f) => f.required && !ret.fields[f.field_id]).map((f) => f.display_name);
+    const review = cat.filter((f) => f.group !== "computed" && applicable(f, ret) && [STATUS.R, STATUS.W, STATUS.E].includes(fieldStatus(f, ret.fields[f.field_id], conf[f.field_id], ret.regime))).length;
+    const missing = cat.filter((f) => f.required && applicable(f, ret) && !ret.fields[f.field_id]).map((f) => f.display_name);
     const docs = docsOf(st, user); const pending = docs.reduce((a, d) => a + d.extractions.filter((e) => e.status === "pending").length, 0);
     const has = (k) => !!ret.fields[k];
     const progress = [
-      { label: "Personal details", done: ["pan", "full_name", "dob", "residential_status"].every(has) },
+      { label: "Taxpayer category chosen", done: true },
+      { label: "Basic details", done: ["pan", "full_name", "residential_status"].every(has) && (!["IND_RES", "IND_NR"].includes(ret.entity) || has("dob")) },
       { label: "Documents uploaded", done: docs.length > 0 },
-      { label: "Income entered", done: ["salary_17_1", "os_savings_interest", "os_deposit_interest", "hp_type", "cg_ltcg_112a", "bp_presumptive"].some(has) },
+      { label: "Income entered", done: ["salary_17_1", "os_savings_interest", "os_deposit_interest", "os_other", "os_dividend", "hp_type", "cg_ltcg_112a", "cg_stcg_111a", "bp_presumptive", "bp_regular", "trust_income", "pp_voluntary_contributions"].some(has) },
       { label: "Values verified", done: review === 0 && pending === 0 && Object.keys(ret.fields).length > 0 },
-      { label: "Regime chosen", done: true },
-      { label: "Worksheet downloaded", done: outsOf(st, user).length > 0 },
+      { label: ["IND_RES", "IND_NR", "HUF"].includes(ret.entity) ? "Regime chosen" : "Tax option chosen", done: true },
+      { label: "Worksheet downloaded", done: outsOf(st, user).some((o) => o.profile_id === ret.id) },
     ];
     return { assessment_year: AY, financial_year: DATA.rules[AY].financial_year, regime: ret.regime, documents: docs.length, pending_suggestions: pending,
-      needs_review: review, missing, recommended_itr: res.itr.recommended, summary: res.summary, warnings: res.warnings, progress, user };
+      needs_review: review, missing, recommended_itr: res.itr.recommended, summary: res.summary, warnings: res.warnings, progress, user,
+      profile: profileInfo(ret), option_label: res.option_label, filing_requirement: res.filing_requirement, due_date: res.summary.due_date,
+      profiles: Object.values(bucket(st, user).profiles).map((p) => ({ id: p.id, label: p.label, category: CATS()[p.entity].short })) };
   });
   route("GET", "/api/admin/status", ({ st }) => {
     requireUser(st);
@@ -442,7 +521,7 @@
   function exportData() {
     const st = load(); const user = requireUser(st);
     const data = { exported_at: new Date().toISOString().slice(0, 10), user: { email: user.email, mobile: user.mobile },
-      returns: Object.entries(st.returns[user.id] || {}).map(([ay, r]) => ({ assessment_year: ay, regime: r.regime, fields: r.fields,
+      returns: Object.entries(st.returns[user.id] || {}).map(([ay, r]) => ({ assessment_year: ay, profiles: r.profiles || null, regime: r.regime, fields: r.fields,
         documents: docsOf(st, user).map((d) => ({ name: d.orig_name, type: d.doc_type, uploaded: d.created_at, extractions: d.extractions })) })) };
     return new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   }

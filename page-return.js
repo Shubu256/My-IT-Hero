@@ -3,11 +3,13 @@
   const s = await shell({ auth: true });
   if (!s) return;
   const GROUPS = [
-    ["personal", "Personal information"], ["flags", "Eligibility questions (decide your ITR form)"], ["salary", "Salary"],
+    ["personal", "Basic information"], ["category", "Category options"], ["residency", "Residential status check (days in India)"], ["flags", "Eligibility and audit questions"], ["salary", "Salary"],
     ["house_property", "House property"], ["other_sources", "Other sources"], ["capital_gains", "Capital gains"], ["business", "Business or profession"],
-    ["deductions", "Deductions (Chapter VI-A)"], ["taxes_paid", "Taxes already paid"], ["bank", "Refund bank account"], ["filing", "Filing"],
+    ["trust", "Trust income and application"], ["political", "Political party / exempt entity conditions"],
+    ["deductions", "Deductions (Chapter VI-A)"], ["taxes_paid", "Taxes already paid"], ["bank", "Refund bank account"], ["filing_check", "Is filing compulsory? (seventh proviso)"], ["filing", "Filing"],
   ];
-  const ENUM_LABELS = { RES: "Resident", RNOR: "Resident but not ordinarily resident", NR: "Non-resident", none: "No house property", self: "Self-occupied", let: "Let out" };
+  const ENUM_LABELS = { RES: "Resident", RNOR: "Resident but not ordinarily resident", NR: "Non-resident", none: "No house property", self: "Self-occupied", let: "Let out",
+    normal: "Normal rates", "115BA": "Section 115BA (25%)", "115BAA": "Section 115BAA (22%)", "115BAB": "Section 115BAB (15%)", "115BAD": "Section 115BAD (22%)", "115BAE": "Section 115BAE (15%)" };
 
   function inputFor(f) {
     const id = "f-" + f.field_id;
@@ -28,7 +30,8 @@
   async function load() {
     let r;
     try { r = await api("GET", "/api/return"); } catch (e) { showError(document.getElementById("ret-err"), e); return; }
-    document.getElementById("ret-sub").textContent = `AY ${r.assessment_year} · ${r.regime === "new" ? "New" : "Old"} regime · ${r.filled} values entered · ${r.documents} document(s)`;
+    document.getElementById("ret-sub").replaceChildren(`${r.profile.label} — ${r.profile.category} (${r.profile.subtype_label}) · AY ${r.assessment_year} · ${r.regime === "new" ? "New regime" : r.regime === "old" ? "Old regime" : "Option: " + r.regime} · ${r.filled} values entered · ${r.documents} document(s) · `,
+      el("a", { href: "taxpayer-categories.html", text: "switch return" }));
     const cbox = document.getElementById("counts");
     cbox.replaceChildren(...Object.entries(r.counts).map(([k, v]) => el("div", { class: "stat" }, el("div", { class: "k" }, chip(k)), el("div", { class: "v", text: String(v) }))));
     const secs = document.getElementById("sections");

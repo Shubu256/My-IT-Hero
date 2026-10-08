@@ -5,11 +5,11 @@
   "use strict";
 
   const NAV_IN = [
-    ["dashboard.html", "Home"], ["new-regime.html", "New Regime"], ["old-regime.html", "Old Regime"], ["upload.html", "Upload Documents"],
+    ["dashboard.html", "Home"], ["taxpayer-categories.html", "Taxpayer Category"], ["new-regime.html", "New Regime"], ["old-regime.html", "Old Regime"], ["upload.html", "Upload Documents"],
     ["my-return.html", "My Return"], ["tax-calculation.html", "Tax Calculation"], ["itr-mapping.html", "ITR Mapping"],
     ["downloads.html", "Downloads"], ["account.html", "Account"],
   ];
-  const NAV_OUT = [["index.html", "Home"], ["new-regime.html", "New Regime"], ["old-regime.html", "Old Regime"], ["where-do-i-enter-this.html", "Where do I enter this?"],
+  const NAV_OUT = [["index.html", "Home"], ["taxpayer-categories.html", "Taxpayer Category"], ["new-regime.html", "New Regime"], ["old-regime.html", "Old Regime"], ["where-do-i-enter-this.html", "Where do I enter this?"],
     ["signin.html", "Sign in"], ["signup.html", "Create account"]];
 
   class ApiError extends Error {
@@ -155,10 +155,15 @@
       const here = currentPage();
       const nav = el("nav", { class: "nav", "aria-label": "Main" },
         items.map(([href, label]) => el("a", { href, text: label, "aria-current": (href === here || (href === "itr-mapping.html" && here === "where-do-i-enter-this.html")) ? "page" : null })));
-      header.replaceChildren(el("div", { class: "topbar" + (user ? " long" : "") }, el("div", { class: "topbar-inner" },
+      header.replaceChildren(el("div", { class: "topbar long" }, el("div", { class: "topbar-inner" },
         el("a", { class: "wordmark", href: user ? "dashboard.html" : "index.html" }, el("span", { class: "mark", "aria-hidden": "true", text: "IT" }), "my IT Hero"),
         el("span", { class: "ay-pill", title: "Assessment Year being prepared", text: `AY ${meta.active_ay} (FY ${meta.financial_year})` }),
+        user ? el("a", { class: "profile-pill", id: "profile-pill", href: "taxpayer-categories.html", title: "Return you are working on - click to switch", text: "..." }) : null,
         nav)));
+      if (user) api("GET", "/api/profiles", undefined, { noRedirect: true }).then((P) => {
+        const a = P.profiles.find((x) => x.id === P.active); const pill = document.getElementById("profile-pill");
+        if (a && pill) pill.textContent = `${a.label} \u00b7 ${a.category_short}`;
+      }).catch(() => {});
       const cur = nav.querySelector('[aria-current="page"]');
       if (cur && cur.scrollIntoView) cur.scrollIntoView({ block: "nearest", inline: "center" });
     }
