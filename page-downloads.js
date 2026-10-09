@@ -8,6 +8,18 @@
   gReg.replaceChildren(...ret.profile.options.map((o) => el("option", { value: o.key, text: o.label })));
   gReg.value = ret.regime;
   document.querySelector("#gen-form").before(el("p", { class: "muted", text: `Open return: ${ret.profile.label} (${ret.profile.category_short}). Switch returns on the Taxpayer categories page.` }));
+  // one click: make the worksheet for the return's own regime/option and download it straight away
+  const optLabel = (ret.profile.options.find((o) => o.key === ret.regime) || {}).label || ret.regime;
+  const quick = (fmt, label) => el("button", { class: "btn", type: "button", text: label, onclick: async (e) => {
+    ITH.busy(e.target, true, "Preparing…");
+    try { const r = await api("POST", "/api/outputs", { format: fmt, regime: ret.regime }); await ITH.downloadOutput(r.output.id); toast("Downloaded " + r.output.filename); load(); }
+    catch (err) { showError(null, err); } finally { ITH.busy(e.target, false); } } });
+  const panel = document.querySelector("#gen-form").closest("section") || document.querySelector("#gen-form").parentElement;
+  panel.before(el("section", { class: "panel stack" },
+    el("h2", { text: "Download your return worksheet" }),
+    el("p", null, `Includes the tax calculation, every value with the portal field it goes in, and — when you uploaded Form 16 / 12BA — the salary, perquisite and TDS break-ups the portal asks for. Uses: `, el("strong", { text: optLabel }), "."),
+    el("div", { class: "btn-row" }, quick("pdf", "Download PDF"), quick("docx", "Download Word (.docx)")),
+    el("p", { class: "muted", text: "Want the other regime / option, or both formats kept? Use the form below." })));
 
   document.getElementById("gen-form").addEventListener("submit", async (e) => {
     e.preventDefault();

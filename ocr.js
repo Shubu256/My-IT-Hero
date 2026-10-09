@@ -6,7 +6,7 @@
 (function (root) {
   "use strict";
   const V = root.ITHValidators;
-  const T = {"DOC_TYPES": [["form16", "Form 16", ["form\\s*no\\.?\\s*16\\b", "\\bform\\s*16\\b", "section 203", "certificate under section 203"]], ["form16a", "Form 16A", ["form\\s*no\\.?\\s*16a", "\\bform\\s*16a\\b"]], ["form26as", "Form 26AS", ["26as", "annual tax statement"]], ["ais", "AIS", ["annual information statement"]], ["tis", "TIS", ["taxpayer information summary"]], ["salary_slip", "Salary slip", ["pay\\s*slip", "salary\\s*slip", "earnings.*deductions"]], ["interest_cert", "Bank interest certificate", ["interest certificate", "certificate of interest", "interest (paid|earned|credited)"]], ["home_loan", "Home-loan certificate", ["housing loan", "home loan", "provisional (interest )?certificate"]], ["rent", "Rent receipt / agreement", ["rent receipt", "rent agreement", "leave and licen[cs]e"]], ["capital_gains", "Capital-gains statement", ["capital gain", "\\bltcg\\b", "\\bstcg\\b", "realised gain", "realized gain"]], ["dividend", "Dividend statement", ["dividend"]], ["insurance", "Insurance premium receipt", ["premium (paid )?receipt", "policy\\s*(no|number)", "health insurance", "mediclaim"]], ["donation", "Donation receipt (80G)", ["\\b80g\\b", "donation"]], ["investment", "Investment proof", ["\\bppf\\b", "\\belss\\b", "\\bnsc\\b", "\\bnps\\b", "provident fund"]]], "FIELD_PATTERNS": {"salary_17_1": ["17\\s*\\(\\s*1\\s*\\)", "salary as per provisions contained in section 17"], "perquisites_17_2": ["17\\s*\\(\\s*2\\s*\\)", "value of perquisites"], "profits_17_3": ["17\\s*\\(\\s*3\\s*\\)", "profits in lieu of salary"], "exempt_allowances": ["total amount of exemption claimed under section 10", "exempt(ed)? under section 10"], "professional_tax": ["tax on employment", "professional tax"], "tds_salary": ["total (amount of )?tax deducted", "tax deducted at source", "net tax deducted"], "tds_other": ["total (amount of )?tax deducted", "tds deducted", "tax deducted"], "d_80c": ["80\\s*c(?![a-z])"], "d_80ccd1b": ["80\\s*ccd\\s*\\(\\s*1b\\s*\\)"], "d_80ccd2": ["80\\s*ccd\\s*\\(\\s*2\\s*\\)"], "d_80d_self": ["80\\s*d(?![a-z])", "premium (amount|paid)", "total premium"], "d_80e": ["80\\s*e(?![a-z])"], "d_80g": ["80\\s*g(?![a-z])", "donation amount", "amount (of donation|donated|received)"], "hp_interest_24b": ["interest (component|paid|payable|amount)", "total interest", "section 24"], "os_savings_interest": ["savings.*interest", "interest.*savings"], "os_deposit_interest": ["(fixed|term|recurring) deposit.*interest", "total interest (paid|credited|earned)", "interest (paid|credited|earned)"], "os_dividend": ["total dividend", "dividend (amount|paid|received)"], "cg_ltcg_112a": ["long[- ]term.*(gain|112a)", "\\bltcg\\b"], "cg_stcg_111a": ["short[- ]term.*(gain|111a)", "\\bstcg\\b"]}, "DOC_FIELDS": {"form16": ["salary_17_1", "perquisites_17_2", "profits_17_3", "exempt_allowances", "professional_tax", "tds_salary", "d_80c", "d_80ccd1b", "d_80ccd2", "d_80d_self", "d_80e", "d_80g"], "salary_slip": [], "form16a": ["tds_other"], "form26as": [], "ais": [], "tis": [], "interest_cert": ["os_savings_interest", "os_deposit_interest", "tds_other"], "home_loan": ["hp_interest_24b"], "capital_gains": ["cg_ltcg_112a", "cg_stcg_111a"], "dividend": ["os_dividend", "tds_other"], "insurance": ["d_80d_self"], "donation": ["d_80g"], "investment": ["d_80c"], "rent": [], "other": []}, "MONEY_TOKEN": "(?<![A-Za-z0-9/(])(?:₹|Rs\\.?|INR)?\\s?((?:\\d[\\dOoIlSB,]*|[OoIlSB]\\d[\\dOoIlSB,]*)(?:\\.[\\dOoIlSB]{1,2})?)(?![A-Za-z0-9)%])"};
+  const T = {"DOC_TYPES": [["form16", "Form 16", ["form\\s*no\\.?\\s*16\\b", "\\bform\\s*16\\b", "section 203", "certificate under section 203"]], ["form12ba", "Form 12BA", ["form\\s*no\\.?\\s*12\\s*ba", "valuation of perquisites", "nature of perquisites", "perquisit"]], ["form16a", "Form 16A", ["form\\s*no\\.?\\s*16a", "\\bform\\s*16a\\b"]], ["form26as", "Form 26AS", ["26as", "annual tax statement"]], ["ais", "AIS", ["annual information statement"]], ["tis", "TIS", ["taxpayer information summary"]], ["salary_slip", "Salary slip", ["pay\\s*slip", "salary\\s*slip", "earnings.*deductions"]], ["interest_cert", "Bank interest certificate", ["interest certificate", "certificate of interest", "interest (paid|earned|credited)"]], ["home_loan", "Home-loan certificate", ["housing loan", "home loan", "provisional (interest )?certificate"]], ["rent", "Rent receipt / agreement", ["rent receipt", "rent agreement", "leave and licen[cs]e"]], ["capital_gains", "Capital-gains statement", ["capital gain", "\\bltcg\\b", "\\bstcg\\b", "realised gain", "realized gain"]], ["dividend", "Dividend statement", ["dividend"]], ["insurance", "Insurance premium receipt", ["premium (paid )?receipt", "policy\\s*(no|number)", "health insurance", "mediclaim"]], ["donation", "Donation receipt (80G)", ["\\b80g\\b", "donation"]], ["investment", "Investment proof", ["\\bppf\\b", "\\belss\\b", "\\bnsc\\b", "\\bnps\\b", "provident fund"]]], "FIELD_PATTERNS": {"salary_17_1": ["17\\s*\\(\\s*1\\s*\\)", "salary as per provisions contained in section 17"], "perquisites_17_2": ["17\\s*\\(\\s*2\\s*\\)", "value of perquisites"], "profits_17_3": ["17\\s*\\(\\s*3\\s*\\)", "profits in lieu of salary"], "exempt_allowances": ["total amount of exemption claimed under section 10", "exempt(ed)? under section 10"], "professional_tax": ["tax on employment", "professional tax"], "tds_salary": ["total (amount of )?tax deducted", "tax deducted at source", "net tax deducted"], "tds_other": ["total (amount of )?tax deducted", "tds deducted", "tax deducted"], "d_80c": ["80\\s*c(?![a-z])"], "d_80ccd1b": ["80\\s*ccd\\s*\\(\\s*1b\\s*\\)"], "d_80ccd2": ["80\\s*ccd\\s*\\(\\s*2\\s*\\)"], "d_80d_self": ["80\\s*d(?![a-z])", "premium (amount|paid)", "total premium"], "d_80e": ["80\\s*e(?![a-z])"], "d_80g": ["80\\s*g(?![a-z])", "donation amount", "amount (of donation|donated|received)"], "hp_interest_24b": ["interest (component|paid|payable|amount)", "total interest", "section 24"], "os_savings_interest": ["savings.*interest", "interest.*savings"], "os_deposit_interest": ["(fixed|term|recurring) deposit.*interest", "total interest (paid|credited|earned)", "interest (paid|credited|earned)"], "os_dividend": ["total dividend", "dividend (amount|paid|received)"], "cg_ltcg_112a": ["long[- ]term.*(gain|112a)", "\\bltcg\\b"], "cg_stcg_111a": ["short[- ]term.*(gain|111a)", "\\bstcg\\b"]}, "DOC_FIELDS": {"form16": ["salary_17_1", "perquisites_17_2", "profits_17_3", "exempt_allowances", "professional_tax", "tds_salary", "d_80c", "d_80ccd1b", "d_80ccd2", "d_80d_self", "d_80e", "d_80g"], "salary_slip": [], "form12ba": ["perquisites_17_2", "profits_17_3"], "form16a": ["tds_other"], "form26as": [], "ais": [], "tis": [], "interest_cert": ["os_savings_interest", "os_deposit_interest", "tds_other"], "home_loan": ["hp_interest_24b"], "capital_gains": ["cg_ltcg_112a", "cg_stcg_111a"], "dividend": ["os_dividend", "tds_other"], "insurance": ["d_80d_self"], "donation": ["d_80g"], "investment": ["d_80c"], "rent": [], "other": []}, "MONEY_TOKEN": "(?<![A-Za-z0-9/(])(?:₹|Rs\\.?|INR)?\\s?((?:\\d[\\dOoIlSB,]*|[OoIlSB]\\d[\\dOoIlSB,]*)(?:\\.[\\dOoIlSB]{1,2})?)(?![A-Za-z0-9)%])"};
   const LOW_CONFIDENCE = 0.8;
   const ALLOWED_EXT = { pdf: "application/pdf", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", heic: "image/heic", heif: "image/heif" };
   const HEIF_BRANDS = ["heic", "heix", "hevc", "hevx", "heim", "heis", "mif1", "msf1", "heif"];
@@ -99,6 +99,7 @@
       let pdf;
       try { pdf = await pdfjs.getDocument({ data: bytes.slice(), isEvalSupported: false, enableXfa: false }).promise; }
       catch (e) {
+        if (typeof console !== "undefined") console.warn("PDF reader:", e && e.name, e && e.message);
         if (e && e.name === "PasswordException") throw new DocError("ENCRYPTED_PDF", "This PDF is password-protected.", "Remove the password (e.g. print to PDF) and upload again.");
         throw new DocError("INVALID_DOCUMENT", "The uploaded file could not be processed.", "Please upload a clearer PDF or image.");
       }
@@ -115,8 +116,12 @@
           if (!rows.has(y)) rows.set(y, []);
           rows.get(y).push({ x: it.transform[4], s: it.str });
         }
-        const text = [...rows.entries()].sort((a, b) => b[0] - a[0]).map(([, items]) => items.sort((a, b) => a.x - b.x).map((x) => x.s).join(" ").replace(/\s+/g, " ").trim());
-        if (text.join("").length >= 30) pages.push({ page: i, method: "pdf_text", lines: text.filter(Boolean).map((t) => ({ text: t, conf: 0.97 })) });
+        const width = typeof page.getViewport === "function" ? page.getViewport({ scale: 1 }).width : null;
+        const lines = [...rows.entries()].sort((a, b) => b[0] - a[0]).map(([, items]) => {
+          items.sort((a, b) => a.x - b.x);
+          return { text: items.map((x) => x.s).join(" ").replace(/\s+/g, " ").trim(), conf: 0.97, items: items.map((x) => ({ x: Math.round(x.x), s: x.s.trim() })).filter((x) => x.s) };
+        }).filter((l) => l.text);
+        if (lines.map((l) => l.text).join("").length >= 30) pages.push({ page: i, method: "pdf_text", width, lines });
         else {
           const vp = page.getViewport({ scale: 200 / 72 });
           const c = document.createElement("canvas"); c.width = vp.width; c.height = vp.height;
@@ -159,6 +164,7 @@
       const tok = m[1].replace(/,+$/, "");
       if ((tok.match(/\d/g) || []).length < 2) continue;
       if (/^(19|20)\d\d$/.test(tok)) continue;
+      if (/^\d{1,2}$/.test(tok) && text.charAt(m.index + m[0].length) === "." && !/\d/.test(text.charAt(m.index + m[0].length + 1))) continue; // item number "19."
       if (SECTION_REF.test(text.slice(0, m.index + m[0].indexOf(m[1])))) continue;
       const end = m.index + m[0].length;
       if (text.slice(end, end + 2).trimStart().startsWith("(")) continue;
@@ -252,13 +258,38 @@
     const bytes = new Uint8Array(await file.arrayBuffer());
     const mime = validateUpload(name, bytes, opts.maxBytes);
     const { pages, count } = await extractPages(bytes, mime, opts.maxPages, opts.progress);
+    return analysePages(name, mime, bytes.length, pages, count);
+  }
+  function analysePages(name, mime, size, pages, count) {
+    const bytes = { length: size };
     const full = pages.flatMap((p) => p.lines.map((l) => l.text)).join("\n");
     if (full.trim().length < 20) throw new DocError("NO_TEXT_FOUND", "No readable text was found in this document.", "Upload a clearer scan or the original PDF.");
+    const methods = [...new Set(pages.map((p) => p.method))].sort();
+    const F = root.ITHForms;
+    const structured = F ? F.read(pages, full) : null;
+    if (structured) {
+      const ocr = methods.includes("ocr");
+      const suggestions = structured.suggestions.map((x) => {
+        const flags = ["structured_form"];
+        if (x.field_id === "tax_regime") return { field_id: x.field_id, page: x.page, raw_value: x.raw, normalized_value: x.value, confidence: x.confidence, flags, validation_status: "valid", note: x.note };
+        const parser = { pan: V.parsePan, employer_tan: V.parseTan, full_name: (v) => ({ ok: !!String(v).trim(), value: String(v).trim(), flags: [] }), employer_name: (v) => ({ ok: !!String(v).trim(), value: String(v).trim(), flags: [] }),
+          hp_type: (v) => ({ ok: ["self", "let", "none"].includes(v), value: v, flags: [] }) }[x.field_id] || ((v) => V.parseMoney(v, false));
+        const p = parser(x.value, false);
+        const s = sugg(x.field_id, x.page, x.raw, p, ocr ? Math.min(x.confidence, 0.85) : x.confidence, flags.concat(p.flags || []));
+        s.note = x.note; return s;
+      });
+      // anything the general patterns find that the dedicated reader did not (unusual layouts) is still offered
+      const have = new Set(suggestions.map((x) => x.field_id));
+      const noTds = !structured.kinds.includes("form16_part_a"); // Part B's "TDS as per Form 12BAA" is not TDS on salary
+      for (const g of extractFields(pages, structured.doc_type)) if (!have.has(g.field_id) && !(noTds && g.field_id === "tds_salary")) { g.flags = (g.flags || []).concat(["general_pattern"]); suggestions.push(g); }
+      return { name, mime, size: bytes.length, pages: count, doc_type: structured.doc_type, doc_label: structured.label, doc_type_confidence: 0.97,
+        suggestions, details: structured.details, warnings: structured.warnings, methods };
+    }
     const [docType, label, conf] = classify(full);
     return { name, mime, size: bytes.length, pages: count, doc_type: docType, doc_label: label, doc_type_confidence: conf,
-      suggestions: extractFields(pages, docType), methods: [...new Set(pages.map((p) => p.method))].sort() };
+      suggestions: extractFields(pages, docType), details: [], warnings: [], methods };
   }
 
-  root.ITHOcr = { processFile, validateUpload, sniff, sanitizeFilename, classify, extractFields, moneyIn, DocError, LOW_CONFIDENCE, DOC_TYPES: T.DOC_TYPES, CDN };
+  root.ITHOcr = { processFile, analysePages, validateUpload, sniff, sanitizeFilename, classify, extractFields, moneyIn, DocError, LOW_CONFIDENCE, DOC_TYPES: T.DOC_TYPES, CDN };
   if (typeof module !== "undefined") module.exports = root.ITHOcr;
 })(typeof window !== "undefined" ? window : globalThis);

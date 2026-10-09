@@ -254,3 +254,44 @@ ol.plain-steps { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; }
 .page-head .crumbs { margin: 0 0 6px; }
 @media (min-width: 961px) { .topbar.long .nav { flex-wrap: wrap; overflow: visible; } }
 ul.tight { margin: 0; padding-left: 1.1em; } ul.tight li + li { margin-top: 2px; }
+
+/* ---------- guided filing flow (upload → my return → calculation → downloads → portal) */
+.flow-bar { margin: 0 0 18px; }
+.flow-bar ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.flow-step a { display: flex; gap: 8px; align-items: flex-start; height: 100%; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--card); text-decoration: none; color: var(--text); }
+.flow-step a:hover { border-color: var(--ink-2); }
+.flow-num { flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--line); font-size: .8rem; font-weight: 700; color: var(--muted); }
+.flow-text { display: flex; flex-direction: column; min-width: 0; }
+.flow-text strong { font-size: .9rem; color: var(--text); }
+.flow-text span { font-size: .76rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+.flow-step.done .flow-num { border-color: var(--ok); background: var(--ok-bg); color: var(--ok); }
+.flow-step.current a { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.flow-step.current .flow-num { border-color: var(--ink); background: var(--ink); color: var(--card); }
+.flow-step.current .flow-text strong { color: var(--ink); }
+.flow-next { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 28px 0 8px; padding-top: 16px; border-top: 1px solid var(--line); }
+@media (max-width: 760px) {
+  .flow-bar ol { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+  .flow-step a { flex-direction: column; align-items: center; text-align: center; padding: 8px 4px; gap: 4px; }
+  .flow-text span { display: none; }
+  .flow-text strong { font-size: .7rem; line-height: 1.2; }
+  .flow-next .btn { flex: 1 1 100%; text-align: center; }
+}
+
+/* ---------- auto-fill report (upload page) */
+.af-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.af-checks { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; font-size: .9rem; }
+.af-checks li { display: flex; gap: 8px; align-items: baseline; }
+.af-checks .mark { flex: none; font-weight: 700; }
+.af-checks .ok .mark { color: var(--ok); }
+.af-checks .bad .mark { color: var(--err); }
+.af-q { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin: 10px 0; }
+.af-q label { display: flex; flex-direction: column; gap: 4px; font-size: .88rem; }
+.af-q .help { font-size: .76rem; color: var(--muted); }
+details.doc-detail > summary { cursor: pointer; color: var(--ink); font-weight: 600; padding: 6px 0; }
+.walk-step { border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--card); padding: 14px 16px; margin-bottom: 12px; }
+.walk-step h3 { margin: 0 0 4px; font-size: 1rem; }
+.walk-step .walk-path { font-size: .8rem; color: var(--muted); margin: 0 0 8px; }
+.walk-step table td:last-child { white-space: nowrap; }
+.recon td.bad { color: var(--err); font-weight: 600; }
+.recon td.good { color: var(--ok); font-weight: 600; }
+.notice.success { border-color: var(--ok); background: var(--ok-bg); }

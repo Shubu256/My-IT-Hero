@@ -30,7 +30,47 @@
     return `${String(d.getUTCDate()).padStart(2, "0")} ${mon} ${d.getUTCFullYear()}, ${String(h).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")} ${ap} IST`;
   }
 
-  function worksheetData(ay, regime, calc, mapping, docs, user, conflicts) {
+  // Portal break-ups read from Form 16 / Form 12BA (filled by the auto-fill step); [] when there are none
+  function docSections(sum, calc) {
+    if (!sum || !sum.employers || !sum.employers.length) return [];
+    const out = [], R = (v) => (v === null || v === undefined || v === "" ? "—" : inr(v));
+    const C = (v) => (v === null || v === undefined || v === "" ? "—" : String(Math.round(Number(v)))); // plain digits — what the portal's number boxes accept
+    const SAL = "Gross Total Income › Salary";
+    for (const e of sum.employers) {
+      const who = `${e.name || "Employer"}${e.tan ? " (TAN " + e.tan + ")" : ""}`;
+      out.push({ title: `Salary — ${who}`, intro: `Portal: ${SAL} › Add details for this employer. Period ${e.period_from ? e.period_from.split("-").reverse().join("/") : "—"} to ${e.period_to ? e.period_to.split("-").reverse().join("/") : "—"}. Read from: ${e.documents.join(", ")}.`,
+        head: ["Portal field", "Amount (copy)", "Form 16 reference"], widths: [0.5, 0.2, 0.3],
+        rows: [["Name of employer", e.name || "—", "Part A / Part B header"], ["TAN of employer", e.tan || "—", "Part A / Part B header"],
+          ["Salary as per section 17(1)", C(e.salary_17_1), "Part B item 1(a)"], ["Value of perquisites as per section 17(2)", C(e.perquisites_17_2), "Part B item 1(b) / Form 12BA row 21"],
+          ["Profits in lieu of salary as per section 17(3)", C(e.profits_17_3), "Part B item 1(c)"], ["Less: allowances exempt u/s 10", C(e.exempt_total), "Part B item 2(i)"],
+          ["Standard deduction u/s 16(ia)", C(e.std_deduction), "Part B item 4(a)"], ["Professional tax u/s 16(iii)", C(e.professional_tax), "Part B item 4(c)"],
+          ["Income chargeable under the head Salaries", C(e.income_salary), "Part B item 6"]] });
+      if (e.perquisites.length) out.push({ title: `Nature of perquisites u/s 17(2) — ${e.name || "employer"}`,
+        intro: `Portal: ${SAL} › Value of perquisites as per section 17(2) › choose each nature from the drop-down and enter the amount. Source: Form 12BA column 5 (value − amount recovered), rounded to rupees.`,
+        head: ["Nature (drop-down)", "Value", "Recovered", "Amount (copy)"], widths: [0.52, 0.16, 0.16, 0.16],
+        rows: e.perquisites.map((p) => [p.nature, R(p.value), R(p.recovered), C(p.chargeable) + (p.adjusted ? " *" : "")]).concat([["Total (equals the 17(2) figure)", "", "", C(e.perquisites.reduce((a, p) => a + Number(p.chargeable), 0))]]),
+        foot: e.perquisites.some((p) => p.adjusted) ? "* adjusted by ₹1 so the lines add up to the rounded 17(2) total." : null });
+      if (e.exemptions.length) out.push({ title: `Exempt allowances u/s 10 — ${e.name || "employer"}`, intro: `Portal: ${SAL} › Allowances to the extent exempt u/s 10 › choose the nature and enter the amount.`,
+        head: ["Nature", "Amount (copy)"], widths: [0.75, 0.25], rows: e.exemptions.map((x) => [x.label, C(x.amount)]) });
+    }
+    const tdsRows = sum.employers.filter((e) => e.tds !== null && e.tds !== undefined);
+    if (tdsRows.length) out.push({ title: "TDS on salary (Schedule TDS1)", intro: "Portal: Tax Paid › TDS on Salary. Usually pre-filled from Form 26AS; check each row matches.",
+      head: ["TAN of employer", "Name of employer", "Income chargeable under Salaries (copy)", "Total tax deducted (copy)"], widths: [0.2, 0.34, 0.23, 0.23],
+      rows: tdsRows.map((e) => [e.tan || "—", e.name || "—", C(e.income_salary !== null ? e.income_salary : e.amount_paid), C(e.tds)]) });
+    const ec = sum.employer_computation;
+    if (ec && calc && calc.summary) {
+      const s = calc.summary, row = (label, theirs, ours) => [label, R(theirs), R(ours), theirs === null || theirs === undefined ? "—" : Math.abs(Number(theirs) - Number(ours)) <= 10 ? "Match" : "Differs"];
+      out.push({ title: "Your employer's computation vs this worksheet", intro: `Form 16 Part B (${sum.employer_computation_of || "employer"}) compared with the calculation above. Small differences come from rounding; large ones mean other income or deductions were added here.`,
+        head: ["Item", "Form 16 Part B", "This worksheet", "Check"], widths: [0.4, 0.2, 0.2, 0.2],
+        rows: [row("Income chargeable under Salaries", ec.income_salary, s.income_salary), row("Gross total income", ec.gross_total_income, s.gross_total_income),
+          row("Deductions under Chapter VI-A", ec.via_total, s.total_deductions), row("Total taxable income", ec.total_income, s.total_income),
+          row("Tax on total income", ec.tax_on_total_income, s.tax_normal), row("Rebate u/s 87A", ec.rebate_87a, s.rebate_87a),
+          row("Tax payable (after rebate, with cess)", ec.tax_payable, s.total_tax_liability)] });
+    }
+    return out;
+  }
+
+  function worksheetData(ay, regime, calc, mapping, docs, user, conflicts, docSummary) {
     const s = calc.summary;
     return {
       ay, fy: calc.financial_year, regime: regime === "new" ? "New Tax Regime (s.115BAC)" : regime === "old" ? "Old Tax Regime" : (calc.option_label || regime), regime_key: regime,
@@ -40,9 +80,9 @@
       itr: calc.itr, summary: s, lines: calc.lines, warnings: calc.warnings, mapping: mapping.fields, mapping_disclaimer: mapping.disclaimer,
       mapping_version: mapping.mapping_version, portal_url: mapping.portal_url, docs,
       pending: mapping.fields.filter((f) => ["Needs Review", "Warning", "Error", "Missing"].includes(f.status)), conflicts,
-      prepared_at: istNow(), email: user.email,
+      prepared_at: istNow(), email: user.email, doc_sections: docSections(docSummary, calc), doc_checks: docSummary ? docSummary.checks || [] : [],
       assumptions: [
-        "Individual taxpayer. HUF and other entities are not supported.",
+        `Taxpayer category: ${calc.profile ? calc.profile.category + " — " + calc.profile.subtype_label : "Individual — Resident"}.`,
         `Interest u/s 234A/B/C and fee u/s 234F estimated for a filing date of ${s.filing_date} (non-audit due date ${s.due_date}).`,
         "Self-assessment tax is treated as paid on the filing date.",
         "Values marked UNVERIFIED in the rule set have not been confirmed against official text and require review.",
@@ -73,7 +113,7 @@
     0x0161: 0x9a, 0x203a: 0x9b, 0x0153: 0x9c, 0x017e: 0x9e, 0x0178: 0x9f };
   function toWin(str) {
     const out = [];
-    for (const ch of String(str).replace(/₹\s?/g, "Rs ").replace(/−/g, "-").replace(/≥/g, ">=")) {
+    for (const ch of String(str).replace(/₹\s?/g, "Rs ").replace(/−/g, "-").replace(/≥/g, ">=").replace(/✓/g, "OK -").replace(/✗/g, "CHECK -")) {
       const c = ch.codePointAt(0);
       if (c >= 32 && c < 127) out.push(c);
       else if (CP1252[c]) out.push(CP1252[c]);
@@ -172,6 +212,18 @@
     const conf = Object.entries(d.conflicts || {});
     if (conf.length) { heading("Conflicting values between documents"); conf.forEach(([fid, c]) => para(`• ${fid}: return value ${c.current}; documents: ` + c.candidates.map((x) => `${x.value} (${x.source} p.${x.page})`).join(", "))); }
 
+    if (d.doc_sections.length) {
+      newPage();
+      heading("From your Form 16 / Form 12BA — portal break-ups");
+      para("These break-ups are what the portal asks for in drop-downs and per-employer rows. Copy the amounts in bold.", { size: 8, color: MUTED, after: 4 });
+      if (d.doc_checks.length) d.doc_checks.forEach((c) => para(`${c.ok ? "✓" : "✗"} ${c.label}: ${c.detail}`, { size: 7.8, color: c.ok ? MUTED : RED }));
+      for (const sec of d.doc_sections) {
+        ensure(60); y -= 4; para(sec.title, { size: 10.5, bold: true, color: INK, after: 1 });
+        if (sec.intro) para(sec.intro, { size: 7.6, color: MUTED, after: 2 });
+        table([sec.head].concat(sec.rows.map((r) => r.map((c, i) => (/\(copy\)|^Check$/.test(sec.head[i] || "") ? { t: c, b: true } : c)))), sec.widths);
+        if (sec.foot) para(sec.foot, { size: 7.4, color: MUTED });
+      }
+    }
     newPage();
     heading(`Where to enter each value — ${d.itr.recommended}`);
     para(`${d.mapping_disclaimer} Mapping version ${d.mapping_version}. Portal: ${d.portal_url}`, { size: 7.8, color: MUTED, after: 4 });
@@ -249,6 +301,18 @@
     b.push(tbl([["Step", "Amount", "Note"]].concat(d.lines.map((l) => [l.label, l.kind === "info" ? "" : inr(l.amount), l.note || ""])), [8.5, 3.2, 6.2], true));
     if (d.warnings.length) { b.push(H("Warnings")); d.warnings.forEach((w) => b.push(P(`• ${w.severity.toUpperCase()} — ${w.message}`))); }
     if (d.pending.length) { b.push(H("Unresolved fields")); d.pending.forEach((f) => b.push(P(`• ${f.display_name}: ${f.status}`))); }
+    if (d.doc_sections.length) {
+      b.push('<w:p><w:r><w:br w:type="page"/></w:r></w:p>');
+      b.push(H("From your Form 16 / Form 12BA — portal break-ups"));
+      b.push(P("These break-ups are what the portal asks for in drop-downs and per-employer rows.", { size: 8.5, color: "5B6070" }));
+      d.doc_checks.forEach((c) => b.push(P(`${c.ok ? "✓" : "✗"} ${c.label}: ${c.detail}`, { size: 8.5, color: c.ok ? "5B6070" : "B42318" })));
+      for (const sec of d.doc_sections) {
+        b.push(P(sec.title, { bold: true, size: 11, color: "1F2A6B" }));
+        if (sec.intro) b.push(P(sec.intro, { size: 8.5, color: "5B6070" }));
+        b.push(tbl([sec.head].concat(sec.rows), sec.widths.map((w) => +(w * 17.8).toFixed(1)), true));
+        if (sec.foot) b.push(P(sec.foot, { size: 8, color: "5B6070" }));
+      }
+    }
     b.push('<w:p><w:r><w:br w:type="page"/></w:r></w:p>');
     b.push(H(`Where to enter each value — ${d.itr.recommended}`));
     b.push(P(`${d.mapping_disclaimer} Mapping version ${d.mapping_version}. Portal: ${d.portal_url}`, { size: 8.5 }));
@@ -303,6 +367,6 @@
     return out;
   }
 
-  root.ITHWorksheet = { worksheetData, buildPdf, buildDocx, inr, fmtValue };
+  root.ITHWorksheet = { docSections, worksheetData, buildPdf, buildDocx, inr, fmtValue };
   if (typeof module !== "undefined") module.exports = root.ITHWorksheet;
 })(typeof window !== "undefined" ? window : globalThis);

@@ -30,7 +30,7 @@
     el("ul", null, ...itr.why.map((w) => el("li", { text: w }))),
     el("p", { class: "muted", text: "Why other forms were not chosen:" }),
     el("ul", null, ...Object.entries(itr.rejected).filter(([, v]) => v && v.length).map(([k, v]) => el("li", null, el("strong", { text: k + ": " }), v.join("; ")))),
-    itr.unanswered_questions && itr.unanswered_questions.length ? el("div", { class: "notice warning" }, el("p", null, itr.note + " ", el("a", { href: "my-return.html#sec-flags", text: "Answer the eligibility questions" }))) : null,
+    itr.unanswered_questions && itr.unanswered_questions.length ? el("div", { class: "notice warning" }, el("p", null, itr.note + " ", el("a", { href: "my-return.html#sec-flags", text: "Answer the eligibility questions" }))) : "",
     el("div", { class: "notice " + (cmp.filing_requirement.required ? "warning" : "info") }, el("p", null, el("strong", { text: cmp.filing_requirement.required ? "Filing is compulsory. " : "Filing is optional. " }), cmp.filing_requirement.reasons.join(" "))),
     el("p", { class: "muted", text: "Rule status: " + itr.verification }));
 
@@ -49,4 +49,36 @@
     } catch (e) { showError(err, e); }
   }
   breakdown();
+
+  // ---- check against the employer's own computation in Form 16 Part B
+  try {
+    const ds = await api("GET", "/api/doc-summary");
+    const ec = ds.summary && ds.summary.employer_computation;
+    if (ec) {
+      // compare like with like: the regime Form 16 was computed under
+      const f16Regime = ds.summary.regime || (ds.summary.employers.find((e) => e.regime) || {}).regime;
+      const ours = (opts.find((o) => o.key === f16Regime) || sel).summary;
+      const rows = [["Income chargeable under Salaries", "income_salary", "income_salary"], ["Gross total income", "gross_total_income", "gross_total_income"],
+        ["Deductions under Chapter VI-A", "via_total", "total_deductions"], ["Total taxable income", "total_income", "total_income"],
+        ["Tax on total income", "tax_on_total_income", "tax_normal"], ["Rebate u/s 87A", "rebate_87a", "rebate_87a"], ["Surcharge", "surcharge", "surcharge"],
+        ["Health & education cess", "cess", "cess"], ["Tax payable", "tax_payable", "total_tax_liability"]];
+      const diffs = rows.filter(([, a, b]) => ec[a] !== null && ec[a] !== undefined && Math.abs(Number(ec[a]) - Number(ours[b])) > 10);
+      const sec = el("section", { class: "panel stack", id: "form16-check" },
+        el("h2", { text: "Check against your Form 16" }),
+        el("p", { class: "muted", text: `Your employer (${ds.summary.employer_computation_of || "employer"}) computed your tax in Form 16 Part B. Differences of up to ₹10 are rounding (total income is rounded to the nearest ₹10 in the return).` }),
+        el("div", { class: "table-wrap" }, el("table", { class: "recon" },
+          el("thead", null, el("tr", null, el("th", { text: "Item" }), el("th", { class: "num", text: "Form 16 Part B" }), el("th", { class: "num", text: "My IT Hero" }), el("th", { text: "" }))),
+          el("tbody", null, ...rows.map(([label, a, b]) => {
+            const t = ec[a], o = ours[b], ok = t === null || t === undefined ? null : Math.abs(Number(t) - Number(o)) <= 10;
+            return el("tr", null, el("td", { text: label }), el("td", { class: "num", text: t === null || t === undefined ? "—" : inr(t) }), el("td", { class: "num", text: inr(o) }),
+              el("td", { class: ok === null ? "" : ok ? "good" : "bad", text: ok === null ? "" : ok ? "✓ Match" : "Differs" }));
+          })))),
+        el("div", { class: "notice " + (diffs.length ? "warning" : "success") }, el("p", { text: diffs.length
+          ? `${diffs.length} line(s) differ. That is expected if you added income or deductions that your employer did not know about (bank interest, 80C/80D proofs not submitted, etc.). Otherwise re-check My Return.`
+          : "Everything matches your employer's computation." })),
+        Number(ours.fee_234f) > 0 ? el("div", { class: "notice warning" }, el("p", null, el("strong", { text: `Late filing fee ${inr(ours.fee_234f)} (s.234F). ` }),
+          `The due date ${new Date(ours.due_date + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} has passed, so this is a belated return u/s 139(4). Pay the fee with e-Pay Tax (minor head 300, self-assessment) before you submit, and enter the challan under Tax Paid.`)) : null);
+      document.querySelector("#compare").closest("section").after(sec);
+    }
+  } catch (e) { /* the comparison is optional */ }
 })();

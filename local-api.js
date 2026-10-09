@@ -81,7 +81,9 @@
   const CATS = () => DATA.rules[AY].entities;
   function newProfile(id, entity, subtype, label) {
     const opts = X.optionsFor({ entity, subtype }, AY);
-    return { id, entity, subtype, label: label || CATS()[entity].short, regime: opts[0].key, fields: {}, created_at: now(), updated_at: now() };
+    const fields = {};
+    if (entity === "IND_RES") fields.residential_status = { value: "RES", source_document_id: null, source_page: null, extraction_method: "category", confidence: 1, user_verified: true, last_modified: now() };
+    return { id, entity, subtype, label: label || CATS()[entity].short, regime: opts[0].key, fields, created_at: now(), updated_at: now() };
   }
   function bucket(st, user) {
     st.returns[user.id] = st.returns[user.id] || {};
@@ -112,17 +114,23 @@
     return out;
   }
   function norm(v) { const p = V.parseMoney(v); return p.ok ? p.value.replace(/\.?0+$/, "") || "0" : String(v); }
+  const PSEUDO = { tax_regime: "Tax regime (Form 16: opting out of 115BAC?)" };
+  const normFor = (fid, v) => { const f = catById()[fid]; return f && !["money", "int"].includes(f.data_type) ? String(v).trim().toUpperCase() : norm(v); };
+  const docOfReturn = (d, ret) => !d.profile_id || d.profile_id === ret.id;
   function conflicts(st, user, ret) {
     const by = {};
-    for (const d of docsOf(st, user)) for (const e of d.extractions) {
-      if (e.status === "rejected" || e.normalized_value === null) continue;
-      (by[e.field_id] = by[e.field_id] || []).push({ value: e.normalized_value, source: d.orig_name, page: e.page, extraction_id: e.id, status: e.status });
+    for (const d of docsOf(st, user)) {
+      if (!docOfReturn(d, ret)) continue;
+      for (const e of d.extractions) {
+        if (["rejected", "combined", "info"].includes(e.status) || e.normalized_value === null || PSEUDO[e.field_id] || !catById()[e.field_id]) continue;
+        (by[e.field_id] = by[e.field_id] || []).push({ value: e.normalized_value, source: d.orig_name, page: e.page, extraction_id: e.id, status: e.status });
+      }
     }
     const out = {};
     for (const [fid, cands] of Object.entries(by)) {
-      const vals = new Set(cands.map((c) => norm(c.value)));
+      const vals = new Set(cands.map((c) => normFor(fid, c.value)));
       const cur = ret.fields[fid] ? ret.fields[fid].value : null;
-      if (cur !== null && cur !== undefined && cur !== "") vals.add(norm(cur));
+      if (cur !== null && cur !== undefined && cur !== "") vals.add(normFor(fid, cur));
       if (vals.size > 1) out[fid] = { current: cur, candidates: cands };
     }
     return out;
@@ -175,7 +183,10 @@
       const keep = docs.filter((d) => d.expires_at >= t);
       if (keep.length !== docs.length) {
         const gone = new Set(docs.filter((d) => d.expires_at < t).map((d) => d.id));
-        for (const r of Object.values(st.returns[uid] || {})) for (const row of Object.values(r.fields)) if (gone.has(row.source_document_id)) row.source_document_id = null;
+        for (const r of Object.values(st.returns[uid] || {})) {
+          const profs = r && r.profiles ? Object.values(r.profiles) : r && r.fields ? [r] : [];
+          for (const pr of profs) for (const row of Object.values(pr.fields || {})) if (gone.has(row.source_document_id)) row.source_document_id = null;
+        }
         st.documents[uid] = keep; changed = true;
       }
     }
@@ -372,10 +383,11 @@
 
   // documents
   function docJson(d) {
-    const cat = catById(); const label = (O.DOC_TYPES.find((x) => x[0] === d.doc_type) || [0, "Other tax document"])[1];
+    const cat = catById(); const label = d.doc_label || (O.DOC_TYPES.find((x) => x[0] === d.doc_type) || [0, "Other tax document"])[1];
     return { id: d.id, name: d.orig_name, mime: d.mime, size: d.size, pages: d.pages, doc_type: d.doc_type, doc_label: label, doc_type_confidence: d.doc_type_confidence,
-      created_at: d.created_at, expires_at: d.expires_at, methods: d.methods,
-      extractions: d.extractions.map((e) => ({ ...e, display_name: (cat[e.field_id] || {}).display_name || e.field_id,
+      created_at: d.created_at, expires_at: d.expires_at, methods: d.methods, profile_id: d.profile_id || null, warnings: d.warnings || [],
+      kinds: (d.details || []).map((x) => x.kind), structured: !!(d.details && d.details.length),
+      extractions: d.extractions.map((e) => ({ ...e, display_name: (cat[e.field_id] || {}).display_name || PSEUDO[e.field_id] || e.field_id,
         message: e.confidence < O.LOW_CONFIDENCE || e.validation_status !== "valid" ? "Please verify this value." : null })) };
   }
   route("POST", "/api/documents", async ({ st, b, opts }) => {
@@ -387,10 +399,11 @@
     const st2 = load(); // reload: OCR can take a while
     const u2 = requireUser(st2);
     const id = nextId(st2), t = now();
-    const doc = { id, orig_name: r.name, mime: r.mime, size: r.size, pages: r.pages, doc_type: r.doc_type, doc_type_confidence: r.doc_type_confidence, methods: r.methods,
+    const doc = { id, orig_name: r.name, mime: r.mime, size: r.size, pages: r.pages, doc_type: r.doc_type, doc_label: r.doc_label, doc_type_confidence: r.doc_type_confidence, methods: r.methods,
+      profile_id: getReturn(st2, u2).id, details: r.details || [], warnings: r.warnings || [],
       created_at: t, expires_at: t + (st2.users[u2.id].retain ? 3650 : CONFIG.RETENTION_DAYS) * 86400,
       extractions: r.suggestions.map((s) => ({ id: nextId(st2), field_id: s.field_id, page: s.page, raw_value: s.raw_value, normalized_value: s.normalized_value,
-        confidence: s.confidence, flags: s.flags, validation_status: s.validation_status, status: "pending" })) };
+        confidence: s.confidence, flags: s.flags, validation_status: s.validation_status, note: s.note || null, status: "pending" })) };
     docsOf(st2, u2).push(doc); save(st2);
     return { document: docJson(doc) };
   });
@@ -409,6 +422,11 @@
   route("POST", "/api/extractions/:id/accept", ({ st, p, b }) => {
     const user = requireUser(st), ret = getReturn(st, user); b = body(b || {});
     const [d, e] = findExtraction(st, user, Number(p.id));
+    if (e.field_id === "tax_regime") {
+      const val = b.value !== undefined ? String(b.value) : e.normalized_value;
+      if (!X.optionsFor(ret, AY).some((o) => o.key === val)) throw new LocalError("INVALID_REGIME", "This return's category does not use the new / old regime choice.", null, 400);
+      ret.regime = val; e.status = "accepted"; save(st); return {};
+    }
     const f = catById()[e.field_id]; if (!f) throw new LocalError("NOT_FOUND", "Unknown field.", null, 404);
     const raw = b.value !== undefined ? b.value : e.normalized_value;
     const pr = V.parserFor(f.data_type)(raw);
@@ -426,6 +444,163 @@
   });
   route("POST", "/api/extractions/:id/reject", ({ st, p }) => { const user = requireUser(st); const [, e] = findExtraction(st, user, Number(p.id)); e.status = "rejected"; save(st); return {}; });
 
+  // ------------------------------------------------------------ Form 16 / Form 12BA → My Return (auto-fill)
+  // Combines every structured salary document of the open return, employer by employer (keyed by TAN):
+  // Part B gives the salary break-up, deductions and regime; Part A the TDS; Form 12BA the nature-wise perquisites.
+  // Fills empty fields, refreshes values it filled earlier, and never overwrites a value you typed — those become conflicts for you to decide.
+  const AUTO = "form16_auto";
+  const n0 = (v) => (v === null || v === undefined || v === "" ? null : Number(String(v).replace(/,/g, "")));
+  const isZero = (v) => n0(v) === 0;
+  const vOf = (B, k) => (B && B.values && B.values[k] ? B.values[k].value : null);
+  const pgOf = (B, k) => (B && B.values && B.values[k] ? B.values[k].page : 1);
+  function docSummary(st, user, ret) {
+    const docs = docsOf(st, user).filter((d) => docOfReturn(d, ret) && Array.isArray(d.details) && d.details.length).sort((a, b) => a.created_at - b.created_at);
+    const emp = new Map(); const pans = new Set(); const warnings = []; const later = [];
+    const put = (key, x, d) => {
+      if (!emp.has(key)) emp.set(key, { tan: x.employer_tan || null, name: null, A: null, B: null, F: null, src: {} });
+      const e = emp.get(key); const slot = x.kind === "form16_part_a" ? "A" : x.kind === "form16_part_b" ? "B" : "F";
+      e[slot] = x; e.src[slot] = { id: d.id, name: d.orig_name }; e.name = e.name || x.employer_name || null; e.tan = e.tan || x.employer_tan || null;
+    };
+    for (const d of docs) {
+      for (const w of d.warnings || []) if (!warnings.includes(w)) warnings.push(w);
+      for (const x of d.details) { if (x.pan) pans.add(x.pan); if (x.employer_tan) put(x.employer_tan, x, d); else later.push([x, d]); }
+    }
+    for (const [x, d] of later) put(emp.size === 1 ? [...emp.keys()][0] : "doc" + d.id, x, d); // no TAN read: attach to the only employer, if there is one
+    const employers = [...emp.values()].map((e) => {
+      const B = e.B, F = e.F, A = e.A;
+      const perqB = vOf(B, "perquisites_17_2"), perqF = F && F.total ? F.total.chargeable : null;
+      const r = { tan: e.tan, name: e.name, period_from: (A || B || {}).period_from || null, period_to: (A || B || {}).period_to || null, certificate_no: (A || B || {}).certificate_no || null,
+        documents: Object.values(e.src).map((x) => x.name), has: { part_a: !!A, part_b: !!B, form12ba: !!F },
+        salary_17_1: vOf(B, "salary_17_1"), perquisites_17_2: perqB !== null ? perqB : perqF, profits_17_3: vOf(B, "profits_17_3") !== null ? vOf(B, "profits_17_3") : F && F.profits_17_3 ? F.profits_17_3.chargeable : null,
+        gross_salary: vOf(B, "gross_salary"), exempt_total: vOf(B, "exempt_total"), std_deduction: vOf(B, "std_deduction"), professional_tax: vOf(B, "professional_tax"),
+        entertainment: vOf(B, "entertainment_16_ii"), income_salary: vOf(B, "income_salary"),
+        exemptions: B ? [["ex_10_5", "Leave travel concession / assistance u/s 10(5)"], ["ex_10_10", "Death-cum-retirement gratuity u/s 10(10)"], ["ex_10_10a", "Commuted value of pension u/s 10(10A)"],
+          ["ex_10_10aa", "Leave encashment u/s 10(10AA)"], ["ex_10_13a", "House rent allowance u/s 10(13A)"], ["ex_10_14", "Special allowances u/s 10(14)"], ["ex_other", "Any other exemption u/s 10"]]
+          .map(([k, label]) => ({ key: k, label, amount: vOf(B, k) })).filter((x) => n0(x.amount)) : [],
+        perquisites: F ? F.perquisites.filter((p) => n0(p.chargeable)).map((p) => ({ no: p.no, nature: p.nature, value: p.value, recovered: p.recovered, chargeable: p.chargeable, chargeable_exact: p.chargeable_exact })) : [],
+        tds: A && A.total ? A.total.deducted : null, tds_deposited: A && A.total ? A.total.deposited : null, amount_paid: A && A.total ? A.total.paid : null, quarters: A ? A.quarters : [],
+        regime: B ? B.regime : null, employer_computation: B ? Object.fromEntries(["income_salary", "gross_total_income", "via_total", "total_income", "tax_on_total_income", "rebate_87a", "surcharge", "cess", "tax_payable", "relief_89", "net_tax_payable"].map((k) => [k, vOf(B, k)])) : null,
+        designation: F ? F.designation : null, src: e.src, B, F, A };
+      // nature-wise perquisites must add up to the 17(2) figure the return uses (rounding per line can be off by a rupee)
+      if (r.perquisites.length && r.perquisites_17_2 !== null) {
+        const sum = r.perquisites.reduce((a, p) => a + n0(p.chargeable), 0), diff = n0(r.perquisites_17_2) - sum;
+        if (diff && Math.abs(diff) <= r.perquisites.length) { const big = r.perquisites.reduce((m, p) => (n0(p.chargeable) > n0(m.chargeable) ? p : m)); big.chargeable = String(n0(big.chargeable) + diff); big.adjusted = diff; }
+      }
+      return r;
+    });
+    const checks = [];
+    const fmt = (v) => "₹" + Number(v).toLocaleString("en-IN");
+    if (pans.size > 1) checks.push({ ok: false, label: "PAN", detail: `Your documents show different PANs (${[...pans].join(", ")}). Upload only your own documents.` });
+    else if (pans.size === 1) checks.push({ ok: true, label: "PAN", detail: `Same PAN on every document (${[...pans][0]}).` });
+    for (const e of employers) {
+      const who = e.name || e.tan || "employer";
+      if (e.B && e.F && perqPair(e)) { const [b, f] = perqPair(e); checks.push({ ok: Math.abs(b - f) <= 1, label: `Perquisites — ${who}`, detail: `Form 16 Part B 17(2) ${fmt(b)} vs Form 12BA chargeable total ${fmt(f)}${Math.abs(b - f) <= 1 ? " (match, after rounding)" : " — they differ; ask your employer which is right"}.` }); }
+      if (e.B && e.gross_salary !== null && e.salary_17_1 !== null) { const t = n0(e.salary_17_1) + n0(e.perquisites_17_2 || 0) + n0(e.profits_17_3 || 0); checks.push({ ok: Math.abs(t - n0(e.gross_salary)) <= 2, label: `Gross salary — ${who}`, detail: `17(1) + 17(2) + 17(3) = ${fmt(t)}; Part B total ${fmt(e.gross_salary)}.` }); }
+      if (e.A && e.B && e.amount_paid !== null && e.income_salary !== null) { const d = Math.abs(n0(e.amount_paid) - n0(e.income_salary)); checks.push({ ok: d <= 100, label: `Part A vs Part B — ${who}`, detail: `Amount paid/credited in Part A ${fmt(e.amount_paid)}; income chargeable under Salaries in Part B ${fmt(e.income_salary)}${d && d <= 100 ? " (small rounding difference)" : d ? " — a large difference; check with your employer" : ""}.` }); }
+      if (e.B && !e.A) warnings.push(`Form 16 Part A for ${who} is missing, so the TDS on salary could not be read. Upload Part A, or enter the TDS from Form 26AS / AIS in My Return.`);
+      if (e.A && !e.B) warnings.push(`Form 16 Part B for ${who} is missing, so the salary break-up could not be read. Upload Part B.`);
+      if (e.F && !e.B) warnings.push(`Only Form 12BA was found for ${who}; it gives perquisites but not your salary u/s 17(1). Upload Form 16 Part B.`);
+    }
+    const ay = [...new Set(docs.flatMap((d) => d.details.map((x) => x.assessment_year)).filter(Boolean))];
+    if (ay.length) checks.push({ ok: ay.every((a) => a === AY), label: "Assessment year", detail: `Documents are for AY ${ay.join(", ")}; this return is AY ${AY}.` });
+    // values for the return
+    const withB = employers.filter((e) => e.B);
+    const latestB = withB.slice().sort((a, b) => String(a.period_to || "").localeCompare(String(b.period_to || "")) || 0).pop() || null;
+    const values = {}; const combined = new Set(); const multi = employers.length > 1;
+    if (multi) { combined.add("employer_name"); combined.add("employer_tan"); } // several employers: each document names its own
+    const setV = (fid, value, srcSlot, e, page, conf, opts = {}) => { if (value === null || value === undefined || value === "") return; values[fid] = { value: String(value), doc: e && e.src[srcSlot] ? e.src[srcSlot].id : null, source: e && e.src[srcSlot] ? e.src[srcSlot].name : null, page: page || 1, conf, combined: !!opts.combined }; if (opts.combined) combined.add(fid); };
+    const sumOf = (k) => { const xs = employers.map((e) => e[k]).filter((v) => v !== null && v !== undefined); return xs.length ? String(xs.reduce((a, v) => a + n0(v), 0)) : null; };
+    const first = employers.find((e) => e.B) || employers[0] || null;
+    if (pans.size === 1) setV("pan", [...pans][0], first && first.src.A ? "A" : first && first.src.B ? "B" : "F", first, 1, 0.97);
+    const nameSrc = employers.find((e) => (e.A || e.B || {}).employee_name) || employers.find((e) => e.F && e.F.employee_name);
+    if (nameSrc) { const x = nameSrc.A || nameSrc.B || nameSrc.F; setV("full_name", x.employee_name, nameSrc.A ? "A" : nameSrc.B ? "B" : "F", nameSrc, 1, 0.95); }
+    const main = employers.slice().sort((a, b) => n0(b.salary_17_1 || 0) - n0(a.salary_17_1 || 0))[0];
+    if (main) { setV("employer_name", main.name, main.src.B ? "B" : main.src.A ? "A" : "F", main, 1, 0.95); setV("employer_tan", main.tan, main.src.B ? "B" : main.src.A ? "A" : "F", main, 1, 0.97); }
+    for (const [fid, k, slot, pk] of [["salary_17_1", "salary_17_1", "B", "salary_17_1"], ["perquisites_17_2", "perquisites_17_2", "B", "perquisites_17_2"], ["profits_17_3", "profits_17_3", "B", "profits_17_3"],
+      ["exempt_allowances", "exempt_total", "B", "exempt_total"], ["professional_tax", "professional_tax", "B", "professional_tax"], ["tds_salary", "tds", "A", null]]) {
+      const v = sumOf(k); if (v === null) continue;
+      const e = employers.find((x) => x[k] !== null && x[k] !== undefined);
+      const s2 = ["perquisites_17_2", "profits_17_3"].includes(fid) && !e.B ? "F" : slot;
+      setV(fid, v, s2, e, pk && e.B ? pgOf(e.B, pk) : fid === "perquisites_17_2" && e.F && e.F.total ? e.F.total.page : 1, s2 === "F" ? 0.95 : 0.97, { combined: multi });
+    }
+    if (latestB) {
+      const B = latestB.B, map = [["d_80c", B.values.d_80c_group ? "d_80c_group" : "d_80c_only"], ["d_80ccd1b", "d_80ccd1b"], ["d_80ccd2", "d_80ccd2"], ["d_80d_self", "d_80d"], ["d_80e", "d_80e"],
+        ["d_80cch", "d_80cch_employee"], ["d_80g", "d_80g"], ["d_80tta", "d_80tta"], ["os_other", "os_reported"]];
+      for (const [fid, k] of map) { const v = vOf(B, k); if (v !== null && !isZero(v)) setV(fid, v, "B", latestB, pgOf(B, k), fid === "os_other" ? 0.85 : 0.9); }
+      const hp = vOf(B, "hp_reported"); if (hp !== null && n0(hp) < 0) { setV("hp_type", "self", "B", latestB, pgOf(B, "hp_reported"), 0.85); setV("hp_interest_24b", String(-n0(hp)), "B", latestB, pgOf(B, "hp_reported"), 0.85); }
+    }
+    // values the dedicated readers could not place but the general patterns read confidently (single-employer returns only)
+    if (!multi) for (const d of docs) for (const x of d.extractions) {
+      if (values[x.field_id] || x.status !== "pending" || x.validation_status !== "valid" || x.confidence < 0.9 || x.field_id === "tax_regime" || isZero(x.normalized_value)) continue;
+      values[x.field_id] = { value: x.normalized_value, doc: d.id, source: d.orig_name, page: x.page, conf: Math.min(x.confidence, 0.9), combined: false };
+    }
+    return { generated_at: now(), employers: employers.map(({ A, B, F, src, ...e }) => e), values, combined: [...combined], regime: latestB ? latestB.regime : null,
+      regime_source: latestB ? latestB.src.B.name : null, employer_computation: latestB ? latestB.employer_computation : null, employer_computation_of: latestB ? latestB.name : null,
+      checks, warnings, documents: docs.map((d) => ({ id: d.id, name: d.orig_name, label: d.doc_label || d.doc_type })) };
+    function perqPair(e) { const b = vOf(e.B, "perquisites_17_2"), f = e.F && e.F.total ? e.F.total.chargeable : null; return b !== null && f !== null ? [n0(b), n0(f)] : null; }
+  }
+  function sameValue(fid, a, b) { return normFor(fid, a) === normFor(fid, b); }
+  function autofill(st, user, ret) {
+    const sum = docSummary(st, user, ret); const cat = catById();
+    const filled = [], unchanged = [], kept = [];
+    if (ret.entity === "IND_RES" && !(ret.fields.residential_status && ret.fields.residential_status.value))
+      ret.fields.residential_status = { value: "RES", source_document_id: null, source_page: null, extraction_method: "category", confidence: 1, user_verified: true, last_modified: now() };
+    for (const [fid, v] of Object.entries(sum.values)) {
+      const f = cat[fid]; if (!f || !applicable(f, ret)) continue;
+      const p = V.parserFor(f.data_type)(v.value); if (!p.ok) continue;
+      const val = String(p.value); const cur = ret.fields[fid];
+      const empty = !cur || cur.value === null || cur.value === "";
+      const info = { field_id: fid, display_name: f.display_name, data_type: f.data_type, value: val, source: v.source, page: v.page, combined: v.combined };
+      if (!empty && sameValue(fid, cur.value, val)) { if (!cur.source_document_id && v.doc) { cur.source_document_id = v.doc; cur.source_page = v.page; } unchanged.push(info); continue; }
+      const mine = !empty && !String(cur.extraction_method || "").startsWith(AUTO) && !String(cur.extraction_method || "").startsWith("ocr");
+      if (mine) { kept.push(Object.assign(info, { current: cur.value })); continue; }
+      ret.fields[fid] = { value: val, source_document_id: v.doc, source_page: v.page, extraction_method: AUTO + (v.combined ? " (combined)" : ""), confidence: v.conf, user_verified: v.conf >= 0.95, last_modified: now() };
+      filled.push(Object.assign(info, { verified: v.conf >= 0.95, previous: empty ? null : cur.value }));
+    }
+    let regime = null;
+    if (sum.regime && ["IND_RES", "IND_NR"].includes(ret.entity) && X.optionsFor(ret, AY).some((o) => o.key === sum.regime)) {
+      regime = { value: sum.regime, previous: ret.regime, changed: ret.regime !== sum.regime, source: sum.regime_source }; ret.regime = sum.regime;
+    }
+    for (const d of docsOf(st, user)) {
+      if (!docOfReturn(d, ret)) continue;
+      for (const e of d.extractions) {
+        if (e.status !== "pending") continue;
+        const cur = ret.fields[e.field_id];
+        if (e.field_id === "tax_regime") e.status = regime ? "accepted" : e.status;
+        else if (cur && e.normalized_value !== null && sameValue(e.field_id, cur.value, e.normalized_value)) e.status = "accepted";
+        else if (sum.combined.includes(e.field_id)) e.status = "combined";
+        else if (isZero(e.normalized_value)) e.status = "info";
+      }
+    }
+    ret.doc_summary = Object.assign({}, sum, { values: undefined });
+    ret.updated_at = now(); save(st);
+    return { filled, unchanged: unchanged.length, unchanged_fields: unchanged, conflicts: kept, regime, checks: sum.checks, warnings: sum.warnings, employers: sum.employers,
+      documents: sum.documents, profile: profileInfo(ret), questions: openQuestions(ret) };
+  }
+  // what Form 16 / 12BA cannot tell us but the ITR choice and tax need
+  function openQuestions(ret) {
+    const cat = catById(); const has = (k) => ret.fields[k] && ret.fields[k].value !== null && ret.fields[k].value !== "";
+    const ids = ["IND_RES", "IND_NR"].includes(ret.entity) ? ["dob", "is_director", "has_unlisted_shares", "has_foreign_assets", "has_foreign_income", "has_bf_losses", "os_savings_interest", "os_deposit_interest", "bank_ifsc", "bank_account", "mobile", "email"] : [];
+    return ids.filter((k) => cat[k] && applicable(cat[k], ret) && !has(k)).map((k) => ({ field_id: k, display_name: cat[k].display_name, data_type: cat[k].data_type, help: cat[k].help, group: cat[k].group }));
+  }
+  route("POST", "/api/autofill", ({ st }) => { const user = requireUser(st), ret = getReturn(st, user); return autofill(st, user, ret); });
+  route("POST", "/api/autofill/use-document", ({ st, b }) => { // the user chose the document value over their own for these fields
+    const user = requireUser(st), ret = getReturn(st, user); b = body(b);
+    const sum = docSummary(st, user, ret); const cat = catById(); const done = [];
+    for (const fid of Array.isArray(b.fields) ? b.fields.slice(0, 50) : []) {
+      const v = sum.values[fid], f = cat[fid]; if (!v || !f) continue;
+      const p = V.parserFor(f.data_type)(v.value); if (!p.ok) continue;
+      ret.fields[fid] = { value: String(p.value), source_document_id: v.doc, source_page: v.page, extraction_method: AUTO, confidence: v.conf, user_verified: true, last_modified: now() };
+      done.push(fid);
+    }
+    save(st); return { updated: done };
+  });
+  route("GET", "/api/doc-summary", ({ st }) => {
+    const user = requireUser(st), ret = getReturn(st, user);
+    const docs = docsOf(st, user).filter((d) => docOfReturn(d, ret));
+    return { summary: ret.doc_summary || null, structured_documents: docs.filter((d) => d.details && d.details.length).length, documents: docs.length, profile: profileInfo(ret), regime: ret.regime };
+  });
+
   // outputs
   const MIME = { pdf: "application/pdf", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" };
   route("POST", "/api/outputs", ({ st, b }) => {
@@ -434,8 +609,8 @@
     if (!["pdf", "docx"].includes(fmt) || !X.optionsFor(ret, AY).some((o) => o.key === regime)) throw new LocalError("INVALID_REQUEST", "Choose PDF or DOCX and an option available for this category.", null, 400);
     const res = calc(st, user, ret, regime); const itr = res.itr.recommended;
     const mp = buildMapping(st, user, ret, regime, itr, res.summary);
-    const docs = docsOf(st, user).map((d) => ({ orig_name: d.orig_name, doc_type: d.doc_type, pages: d.pages, created_at: d.created_at }));
-    const data = WS.worksheetData(AY, regime, res, mp, docs, user, conflicts(st, user, ret));
+    const docs = docsOf(st, user).filter((d) => docOfReturn(d, ret)).map((d) => ({ orig_name: d.orig_name, doc_type: d.doc_label || d.doc_type, pages: d.pages, created_at: d.created_at }));
+    const data = WS.worksheetData(AY, regime, res, mp, docs, user, conflicts(st, user, ret), ret.doc_summary || null);
     const bytes = fmt === "pdf" ? WS.buildPdf(data) : WS.buildDocx(data);
     let bin = ""; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
     const slug = (ret.entity + "_" + ret.subtype).toLowerCase().replace(/[^a-z0-9]+/g, "-");
